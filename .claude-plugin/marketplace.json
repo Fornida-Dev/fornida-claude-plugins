@@ -1,0 +1,9 @@
+{
+  "name": "fornida-plugins",
+  "description": "Fornida-curated Claude Code plugins distributed org-wide.",
+  "owner": { "name": "Fornida MSP / Systems", "email": "it@fornida.com" },
+  "plugins": [
+    { "name": "compound-engineering", "source": "./plugins/compound-engineering", "category": "engineering" },
+    { "name": "caveman",              "source": "./plugins/caveman",              "category": "productivity" }
+  ]
+}
