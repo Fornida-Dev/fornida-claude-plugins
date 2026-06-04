@@ -4,6 +4,7 @@
   "owner": { "name": "Fornida MSP / Systems", "email": "it@fornida.com" },
   "plugins": [
     { "name": "compound-engineering", "source": "./plugins/compound-engineering", "category": "engineering" },
-    { "name": "caveman",              "source": "./plugins/caveman",              "category": "productivity" }
+    { "name": "caveman",              "source": "./plugins/caveman",              "category": "productivity" },
+    { "name": "superclaude",          "source": "./plugins/superclaude",          "category": "engineering" }
   ]
 }
