@@ -25,17 +25,28 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = $PSScriptRoot
 $problems = @()
 
-# --- Check 1: forced output style present + correct ---
-$stylePath = Join-Path $repoRoot 'plugins\caveman\output-styles\caveman.md'
+# --- Check 1: forced default present + correct, AND exactly one forced style ---
+$styleDir = Join-Path $repoRoot 'plugins\caveman\output-styles'
+$stylePath = Join-Path $styleDir 'caveman.md'
 if (-not (Test-Path -LiteralPath $stylePath)) {
     $problems += "Missing forced output style: $stylePath (run apply-overlays.ps1)"
 } else {
     $style = Get-Content -LiteralPath $stylePath -Raw
     if ($style -notmatch '(?m)^\s*force-for-plugin:\s*true\s*$') {
-        $problems += "Output style missing 'force-for-plugin: true': $stylePath"
+        $problems += "Default output style missing 'force-for-plugin: true': $stylePath"
     }
     if ($style -notmatch '(?m)^\s*keep-coding-instructions:\s*true\s*$') {
-        $problems += "Output style missing 'keep-coding-instructions: true': $stylePath"
+        $problems += "Default output style missing 'keep-coding-instructions: true': $stylePath"
+    }
+}
+# Exactly one caveman style may force itself (selectable lite/ultra must NOT force).
+if (Test-Path -LiteralPath $styleDir) {
+    $forced = @(Get-ChildItem -LiteralPath $styleDir -Filter '*.md' | Where-Object {
+        (Get-Content -LiteralPath $_.FullName -Raw) -match '(?m)^\s*force-for-plugin:\s*true\s*$'
+    })
+    if ($forced.Count -ne 1) {
+        $names = ($forced | ForEach-Object { $_.Name }) -join ', '
+        $problems += "Expected exactly 1 forced caveman style, found $($forced.Count): [$names]. Only caveman.md may set force-for-plugin: true."
     }
 }
 

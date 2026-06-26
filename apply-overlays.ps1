@@ -32,6 +32,14 @@ $overlays = @(
         Target = Join-Path $repoRoot 'plugins\caveman\output-styles\caveman.md'
     },
     @{
+        Source = Join-Path $repoRoot 'overlays\caveman\output-styles\caveman-lite.md'
+        Target = Join-Path $repoRoot 'plugins\caveman\output-styles\caveman-lite.md'
+    },
+    @{
+        Source = Join-Path $repoRoot 'overlays\caveman\output-styles\caveman-ultra.md'
+        Target = Join-Path $repoRoot 'plugins\caveman\output-styles\caveman-ultra.md'
+    },
+    @{
         Source = Join-Path $repoRoot 'overlays\caveman\plugin.json'
         Target = Join-Path $repoRoot 'plugins\caveman\.claude-plugin\plugin.json'
     }
