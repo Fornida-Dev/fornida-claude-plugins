@@ -19,7 +19,21 @@ and pinned to upstream commit SHAs for auditability - see VENDOR.md.
 
 **Windows note:** compound-engineering's tarball contains symlinked mirror dirs that
 Windows `tar.exe` cannot extract; updating CE on Windows needs a git-based fetch (see
-VENDOR.md "Known limitation"). caveman extracts cleanly on every platform.
+VENDOR.md "Known limitation"). caveman extracts cleanly on every platform. The scheduled
+automation (below) runs on a Linux runner, so CI sidesteps this entirely — CI is the
+canonical update path.
+
+## Automated updates (scheduled)
+`.github/workflows/auto-revendor.yml` runs weekly (Mondays, and on-demand via
+**workflow_dispatch**) on a Linux runner. It re-vendors every plugin from latest upstream,
+re-applies + verifies overlays, and — only when something changed — opens or updates a
+single rolling PR (`automation/revendor`). No change → no PR.
+
+- **Review + merge to publish.** The workflow never pushes to `main`; the merge is the
+  human-gated publish (org rule: no deploy without explicit approval).
+- **One-time prerequisite:** Settings → Actions → General → Workflow permissions → enable
+  **"Allow GitHub Actions to create and approve pull requests"**, or the PR step 403s.
+- The manual `setup-fornida-plugins.ps1` flow above still works for ad-hoc / local runs.
 
 ## Overlays (Fornida edits on top of vendored plugins)
 - `overlays/` — source of truth; `apply-overlays.ps1` copies it onto `plugins/`.
