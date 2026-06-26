@@ -26,13 +26,16 @@ canonical update path.
 ## Automated updates (scheduled)
 `.github/workflows/auto-revendor.yml` runs weekly (Mondays, and on-demand via
 **workflow_dispatch**) on a Linux runner. It re-vendors every plugin from latest upstream,
-re-applies + verifies overlays, and — only when something changed — opens or updates a
-single rolling PR (`automation/revendor`). No change → no PR.
+re-applies + verifies overlays, validates the marketplace, and — only when something
+changed and both gates pass — **commits straight to `main` and pushes**. No PR, no click.
 
-- **Review + merge to publish.** The workflow never pushes to `main`; the merge is the
-  human-gated publish (org rule: no deploy without explicit approval).
-- **One-time prerequisite:** Settings → Actions → General → Workflow permissions → enable
-  **"Allow GitHub Actions to create and approve pull requests"**, or the PR step 403s.
+- **Machine-gated, not human-gated.** `verify-overlays.ps1` (overlay intact) and
+  `claude plugin validate` are the only guards; either failing aborts the push. There is
+  **no human review** before publish — upstream changes go to the fleet automatically,
+  including unwanted behaviour changes the gates can't detect. Owner-accepted trade-off; to
+  re-add review, switch the final workflow step back to opening a PR.
+- No special repo setting and no third-party action required — plain `git push` under
+  `contents: write`.
 - The manual `setup-fornida-plugins.ps1` flow above still works for ad-hoc / local runs.
 
 ## Overlays (Fornida edits on top of vendored plugins)
