@@ -29,19 +29,37 @@ Source of truth lives in `overlays/`; `apply-overlays.ps1` re-applies it.
   while caveman is enabled — `/output-style` and a typed `stop caveman` drop terse
   for the current session only; `force-for-plugin` re-applies next session.
 
-### Re-vendor MUST re-apply overlays
+  - `output-styles/caveman-lite.md` + `output-styles/caveman-ultra.md` — selectable
+    (NON-forced) intensity tiers that preserve caveman's lite/full/ultra functionality
+    without the Node hooks. Users pick them per-session via `/output-style`; only
+    `caveman.md` is forced. `verify-overlays.ps1` asserts exactly one forced style.
 
-After any re-pin/re-vendor of caveman, run:
+  - **`.caveman/config.json` is inert here.** Upstream `25d22f86` added a repo-local
+    `.caveman/config.json` + natural-language brevity triggers, but they are read
+    ONLY by the Node hooks (`src/hooks/caveman-config.js` and the activate/tracker
+    hooks) — which our overlay removes. No MCP server, tool, or command reads them.
+    So the config mechanism has no effect in the Fornida setup; the forced output
+    style is the single source of terse behavior. No conflict.
+
+### Re-vendor re-applies overlays automatically
+
+`setup-fornida-plugins.ps1` (now version-controlled in this repo) runs
+`apply-overlays.ps1` + `verify-overlays.ps1` automatically after vendoring, and
+aborts before committing if verify fails. So a re-pin can never silently drop the
+caveman overlay. To re-apply manually outside a full re-vendor:
 
 ```powershell
 .\apply-overlays.ps1     # restore Fornida overlay onto plugins/caveman
-.\verify-overlays.ps1    # FAILS LOUD if hooks returned or the style went missing
-claude plugin validate . # optional but recommended
+.\verify-overlays.ps1    # FAILS LOUD if hooks returned or a style went missing
 ```
 
-`verify-overlays.ps1` exists so a forgotten re-apply is a loud failure, not a
-silent fleet-wide revert to verbose.
+## Known limitation — compound-engineering on Windows
 
-**Follow-up (not yet done):** fold the `apply-overlays.ps1` call into
-`setup-fornida-plugins.ps1` once that script is version-controlled in this repo,
-so re-apply is automatic rather than a manual checklist step.
+Upstream compound-engineering **restructured**: the plugin now lives at the repo
+**root** (not under `plugins/compound-engineering`), so its vendoring subpath is `''`
+(see `setup-fornida-plugins.ps1`). Its tarball also contains symlinked mirror dirs
+(`.agy`, `.cursor-plugin`, `.codex-plugin`, etc.) that Windows `tar.exe` cannot
+extract (`Invalid argument`). Updating CE on Windows therefore needs a git-based
+fetch or symlink-tolerant extraction rather than the tar path the script uses for
+caveman. Until that is added, update CE from a Unix shell (git-bash/WSL/macOS/Linux)
+or via `git`. caveman has no symlink issue and vendors cleanly on every platform.
