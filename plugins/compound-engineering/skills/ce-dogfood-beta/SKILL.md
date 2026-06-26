@@ -1,6 +1,6 @@
 ---
 name: ce-dogfood-beta
-description: "[BETA] Dogfood the active branch end-to-end as a QA engineer. Diffs the branch against main, builds an exhaustive browser test matrix of every change (full user journeys, not just features), drives the app with agent-browser, then auto-fixes issues, adds regression tests, and commits each fix until the matrix is green. Use when you want a hands-off 'test everything we just built and make it actually work' pass before shipping."
+description: "[BETA] Hands-off end-to-end branch dogfood pass with browser testing, auto-fixes, regression tests, and fix commits."
 disable-model-invocation: true
 argument-hint: "[PR number, branch name, or blank for current branch] [--port PORT]"
 ---
@@ -24,7 +24,7 @@ This workflow drives the browser exclusively through the `agent-browser` CLI. Do
   command -v agent-browser >/dev/null 2>&1 && echo "Ready" || echo "NOT INSTALLED"
   ```
 
-  If not installed, run the `ce-setup` skill to install dependencies, then resume. Do not continue without it.
+  If not installed, run the `ce-setup` skill to get the current install command, install `agent-browser`, then resume. Do not continue without it.
 
 ## Reusing Compound-Engineering Skills
 
@@ -33,7 +33,7 @@ This workflow drives the browser exclusively through the `agent-browser` CLI. Do
 | When | Skill | Why |
 |------|-------|-----|
 | Phase 0 isolation | `ce-worktree` | Run the dogfood in an isolated worktree so the main checkout stays clean. |
-| agent-browser missing | `ce-setup` | Installs `agent-browser` and other deps. |
+| agent-browser missing | `ce-setup` | Reports the current `agent-browser` install command. |
 | A failure's root cause is non-obvious | `ce-debug` | Systematic root-cause analysis instead of guess-and-check. |
 | Committing each fix | `ce-commit` | Consistent, well-scoped commit messages. |
 | A bug reveals a reusable lesson | `ce-compound` | Capture the learning so the team compounds knowledge. |
@@ -75,7 +75,7 @@ Because tasks are session-scoped but the report doc is on disk, the report is th
 
 ### Phase 1: Analyze Changes
 
-Pull the full diff against `main` and read it carefully — you cannot test what you don't understand.
+Pull the full diff against `main` and read it.
 
 ```bash
 git diff --name-only main...HEAD     # what changed
@@ -88,7 +88,7 @@ Build a mental model of every change: new features, modified behavior, new route
 
 ### Phase 2: Map the Flows, Then Build the Matrix
 
-The quality of the whole dogfood depends on this phase. Do not jump straight to a flat list of pages. First **understand the user flows the diff touches**, then derive the matrix from them. A matrix built without a flow model tests pages in isolation and misses the journey — the email that "sends" but lands in the wrong thread.
+Do not jump straight to a flat list of pages. First **understand the user flows the diff touches**, then derive the matrix from them. A matrix built without a flow model tests pages in isolation and misses the journey — the email that "sends" but lands in the wrong thread.
 
 #### 2a. Map the user flows (required)
 
@@ -120,7 +120,7 @@ Map changed files to concrete routes (views -> their pages, components -> pages 
 
 ### Phase 3: Detect Port and Start the Dev Server
 
-Determine the port (priority: explicit `--port` > `AGENTS.md`/`CLAUDE.md` > `package.json` dev script > `.env*` `PORT=` > default `3000`). If a server is already listening, reuse it; otherwise start the project's dev command in the background and wait for the port to come up. This is the same mechanism `ce-test-browser` uses — follow its Phase 5–6 logic.
+Determine the port (priority: explicit `--port` > a port explicitly stated in your in-context project instructions > `package.json` dev script > `.env*` `PORT=` > default `3000`). If a server is already listening, reuse it; otherwise start the project's dev command in the background and wait for the port to come up. This is the same mechanism `ce-test-browser` uses — follow its Phase 5–6 logic.
 
 ```bash
 agent-browser open "http://localhost:${PORT}"

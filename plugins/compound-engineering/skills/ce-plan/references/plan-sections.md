@@ -114,8 +114,9 @@ a section with placeholder prose is worse than omitting it.
 
 - **System-Wide Impact** — include when the change affects cross-cutting
   concerns (data lifecycles, auth boundaries, performance posture, cardinal
-  rules, shared infrastructure). Skip for changes localized to one component
-  where the impact is self-evident.
+  rules, shared infrastructure, agent/tool parity, prompt context, shared
+  workspaces). Skip for changes localized to one component where the impact is
+  self-evident.
 
 - **Risks & Dependencies** — include when there are real risks worth flagging
   (external service changes, version pins under churn, behavioral assumptions
@@ -157,6 +158,44 @@ The agent also picks per artifact:
 - Whether HTD has one diagram, several, or none — and whether visualizations
   live in HTD or embedded in other sections
 
+## Prose economy
+
+"Include when material" sizes *which* sections appear; this sizes *how the kept
+prose reads*. A section can be material and still be written loosely — the
+failure mode is a material section padded into a wall of text where
+contradictions hide and the implementing agent loses the thread. A deep plan
+earns length through coverage (more units, more traced requirements, real
+risks), never through wordiness around that coverage.
+
+Hold every kept section to these:
+
+- **One idea per sentence.** A Summary is a handful of sentences, not one
+  sentence with five semicolons and four parentheticals. A KTD's rationale is
+  the load-bearing reason, not every reason.
+- **A requirement or unit is one sentence of intent plus at most one
+  qualifier.** When it would specify two outcomes ("either A or B, the
+  implementer decides"), state the intent and send the fork to Open Questions —
+  don't write both arms in full inside the item.
+- **Cut hedges and intensifiers.** "Critically", "deliberately", "explicitly",
+  "genuinely", "actually", "simply" carry nothing the implementer acts on.
+- **Prefer the verb to the nominalization.** "Demote the grid", not "the
+  demotion of the grid is the deliberate change in this plan".
+
+Precision is not padding: keep file paths, IDs, conditionals, and exact
+thresholds verbatim. Economy targets the connective tissue around them, never
+the precision itself.
+
+**Resolve in place; don't stratify.** When deepening, a doc-review pass, or a
+later decision supersedes earlier text, rewrite or remove the original — don't
+leave it standing as strikethrough or stack a separate "resolutions" layer on
+top of it. Version control holds the history. Stacked strata double the reading
+surface and hide which text is live.
+
+**Named test, run before the plan is declared written:** could the implementer
+find a contradiction in each section in one pass? A sentence carrying more than
+one parenthetical, or an item specifying two outcomes, fails the test — split it
+or defer it.
+
 ## Plan metadata fields
 
 Every plan carries a small set of stable metadata fields that downstream
@@ -174,12 +213,12 @@ plan.
 - **`type`** — conventional-commit-prefix-aligned classification (`feat`,
   `fix`, `refactor`, `chore`, `docs`, `perf`, `test`, etc.). Carries the
   intent the eventual commit message should reflect.
-- **`status`** — `active` on creation; `ce-work` flips to `completed` on
-  ship. `ce-plan`'s Phase 0.1 resume fast path keys on `active`. In HTML,
-  status MUST render as `<span class="status">{value}</span>` so the flip
-  mechanic can locate and rewrite it by selector (see
-  `references/html-rendering.md`).
 - **`date`** — creation date in ISO 8601 (`YYYY-MM-DD`), ASCII digits only.
+
+Plans carry **no `status` field** — a plan is a decision artifact, not a
+tracked work item. `ce-work` does not mutate the plan at ship time;
+whether a plan shipped is derived from git, not stored in the doc. Do not
+add a `status` field or an `active → completed` lifecycle.
 
 ### Optional but well-known
 
@@ -189,16 +228,23 @@ semantics so downstream tooling can rely on them:
 - **`origin`** — repo-relative path to an upstream brainstorm requirements
   doc (e.g., `docs/brainstorms/2026-05-12-pagination-requirements.md`).
   Set when planning from an upstream brainstorm; carried for traceability
-  and re-resolved when `ce-plan` re-deepens. The HITL Proof flow uses
-  `origin` to trace back to the source brainstorm.
+  and re-resolved when `ce-plan` re-deepens.
 - **`deepened`** — ISO 8601 date marking the first time the confidence
   check substantively strengthened the plan. Presence affects Phase 0.1
   resume fast-path logic (see `references/deepening-workflow.md`).
+- **`execution`** — execution domain for downstream routing: `code`
+  (the default when absent) or `knowledge-work`. `ce-work`'s input triage
+  reads this: a plan marked `execution: knowledge-work` routes to the
+  non-code carve-out (read sources, synthesize, produce a deliverable —
+  skipping the branch/test/commit/CI lifecycle); absent or `code` routes
+  to the normal code path. Written by `ce-plan`'s approach-altitude flow
+  (`references/approach-altitude.md`) when a non-code deliverable is
+  persisted for execution.
 
 Field names are stable across plan revisions — never rename a field or
 repurpose its semantics. Agents composing new plans MUST use these exact
-names; adding new fields is fine, but renaming `status` to `state` or
-`origin` to `source` breaks the downstream consumers above.
+names; adding new fields is fine, but renaming `origin` to `source` or
+`date` to `created` breaks the downstream consumers above.
 
 ## ID and content rules
 

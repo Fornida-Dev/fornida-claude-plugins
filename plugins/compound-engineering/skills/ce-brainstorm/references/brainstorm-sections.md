@@ -52,6 +52,44 @@ brainstorm with sparse content produces a sparse doc; one with rich content
 produces a rich doc. Don't add ceremony to make a slim brainstorm look
 substantial.
 
+## Prose economy
+
+Match-depth-to-content sizes *which* sections appear and how deep each goes.
+This sizes *how the kept prose reads*. A section can be material and still be
+written loosely — the failure mode is a material section padded into a wall of
+text where contradictions hide and a downstream agent loses the thread. Length
+that earns its place is fine; wordiness around that length is not.
+
+Hold every kept section to these:
+
+- **One idea per sentence.** A Summary is a handful of sentences, not one
+  sentence with five semicolons and four parentheticals. If a sentence needs a
+  second parenthetical to stay true, split it.
+- **A requirement is one sentence of intent plus at most one qualifier.** When
+  a requirement would specify two outcomes ("either A or B, planning decides"),
+  state the intent and send the fork to Outstanding Questions — don't write both
+  arms in full inside the requirement.
+- **Cut hedges and intensifiers.** "Critically", "deliberately", "explicitly",
+  "genuinely", "actually", "simply" carry nothing a downstream agent acts on.
+- **Prefer the verb to the nominalization.** "Demote the grid", not "the
+  demotion of the grid is the deliberate change in this brief".
+
+Precision is not padding: keep domain terms, conditionals, and exact thresholds
+verbatim. Economy targets the connective tissue around them, never the precision
+itself.
+
+**Resolve in place; don't stratify.** When a later decision answers a parked
+question or supersedes earlier text, rewrite or remove the original entry —
+don't append a separate "resolutions" layer that leaves the superseded text
+standing, and don't keep superseded prose as strikethrough. Version control
+holds the history. Stacked question/resolution strata double the reading surface
+and hide which text is live.
+
+**Named test, run before the doc is declared written:** could a reader find a
+contradiction in each section in one pass? A sentence carrying more than one
+parenthetical, or a requirement specifying two outcomes, fails the test — split
+it or defer it.
+
 ## Hard floor
 
 When a doc is warranted, these are present.
@@ -195,14 +233,13 @@ the brainstorm.
   alongside `date` and as the resume-detection key when `ce-brainstorm`'s
   Phase 0.1 scans `docs/brainstorms/` for an existing artifact to continue.
 
-### Status flip does not apply to brainstorm
+### No status field
 
-Unlike plans, brainstorm artifacts have no `status` field — there is no
-`active → completed` lifecycle. A brainstorm is a one-time output that
-downstream consumers (`ce-plan`, `ce-doc-review`) reference via the plan's
-`origin:` field. The `<span class="status">` HTML hook described in
-`html-rendering.md` is a plan-side mechanic and does not render on
-brainstorm artifacts.
+Brainstorm artifacts have no `status` field and no `active → completed`
+lifecycle — a brainstorm is a one-time output that downstream consumers
+(`ce-plan`, `ce-doc-review`) reference via the plan's `origin:` field. No
+CE artifact carries a mutable status; whether work shipped is derived from
+git, not stored in the doc. Do not introduce one.
 
 ### Field-name stability
 

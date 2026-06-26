@@ -12,7 +12,14 @@ gh pr view --json number -q .number
 Then fetch all feedback using the GraphQL script at [scripts/get-pr-comments](../scripts/get-pr-comments):
 
 ```bash
-bash scripts/get-pr-comments PR_NUMBER
+if [ -n "${CLAUDE_SKILL_DIR}" ] && [ -f "${CLAUDE_SKILL_DIR}/scripts/get-pr-comments" ]; then
+  SCRIPT_DIR="${CLAUDE_SKILL_DIR}/scripts"
+else
+  echo "ce-resolve-pr-feedback bundled scripts are unavailable in this harness; use the fallback gh commands below." >&2
+  exit 1
+fi
+
+bash "$SCRIPT_DIR/get-pr-comments" PR_NUMBER
 ```
 
 Returns a JSON object with three keys:
@@ -56,9 +63,9 @@ Process all three feedback types. Review threads are the primary type; PR commen
 
 ### Dispatch
 
-**For review threads** (`review_threads`): Spawn a `ce-pr-comment-resolver` agent for each new thread.
+**For review threads** (`review_threads`): Read `references/agents/pr-comment-resolver.md` and spawn a generic subagent seeded with that prompt for each new thread. Do not dispatch a standalone agent by type/name.
 
-Each agent receives:
+Each resolver subagent receives:
 - The thread ID
 - The file path and location fields: `line`, `originalLine`, `startLine`, `originalStartLine` (any can be null; outdated and file-level threads often have `line == null` and must fall back to `originalLine`)
 - The full comment text (all comments in the thread)
@@ -66,11 +73,11 @@ Each agent receives:
 - The feedback type (`review_thread`)
 - The `isOutdated` flag from the thread node (tells the agent the reported line may have drifted)
 
-**For PR comments and review bodies** (`pr_comments`, `review_bodies`): These lack file/line context. Spawn a `ce-pr-comment-resolver` agent for each actionable item. The agent receives the comment ID, body text, PR number, and feedback type (`pr_comment` or `review_body`). The agent must identify the relevant files from the comment text and the PR diff.
+**For PR comments and review bodies** (`pr_comments`, `review_bodies`): These lack file/line context. Read `references/agents/pr-comment-resolver.md` and spawn a generic subagent seeded with that prompt for each actionable item. The resolver receives the comment ID, body text, PR number, and feedback type (`pr_comment` or `review_body`). The resolver must identify the relevant files from the comment text and the PR diff.
 
-### Agent return format
+### Resolver return format
 
-Each agent returns a short summary:
+Each resolver returns a short summary:
 - **verdict**: `fixed`, `fixed-differently`, `replied`, `not-addressing`, `declined`, or `needs-human`
 - **feedback_id**: the thread ID or comment ID it handled
 - **feedback_type**: `review_thread`, `pr_comment`, or `review_body`
@@ -94,7 +101,7 @@ Verdict meanings:
 
 **Sequential fallback**: Platforms that do not support parallel dispatch should run agents sequentially.
 
-Fixes can occasionally expand beyond their referenced file (e.g., renaming a method updates callers elsewhere). This is rare but can cause parallel agents to collide. Step 5 (combined validation) catches test breakage; step 8 (verify) catches unresolved threads. If either surfaces inconsistent changes from parallel fixes, re-run the affected agents sequentially.
+Fixes can occasionally expand beyond their referenced file (e.g., renaming a method updates callers elsewhere). This is rare but can cause parallel resolvers to collide. Step 5 (combined validation) catches test breakage; step 8 (verify) catches unresolved threads. If either surfaces inconsistent changes from parallel fixes, re-run the affected resolvers sequentially.
 
 ## 5. Validate Combined State
 
@@ -161,14 +168,44 @@ For `needs-human` verdicts, post the reply but do NOT resolve the thread. Leave 
 
 ### Review threads
 
+0. **Verify the thread ID** before replying. GitHub Enterprise can return inconsistent node IDs for the same thread depending on the query path. Always confirm the ID from `get-pr-comments` resolves to the correct thread using [scripts/get-thread-for-comment](../scripts/get-thread-for-comment) with the comment's numeric URL ID:
+```bash
+if [ -n "${CLAUDE_SKILL_DIR}" ] && [ -f "${CLAUDE_SKILL_DIR}/scripts/get-thread-for-comment" ]; then
+  SCRIPT_DIR="${CLAUDE_SKILL_DIR}/scripts"
+else
+  echo "ce-resolve-pr-feedback bundled scripts are unavailable in this harness; use gh api to inspect the review thread." >&2
+  exit 1
+fi
+
+# Extract numeric comment ID from the comment URL (e.g. discussion_r2589700 → 2589700)
+GH_REPO=OWNER/REPO gh api repos/{owner}/{repo}/pulls/comments/COMMENT_ID --jq .node_id
+bash "$SCRIPT_DIR/get-thread-for-comment" PR_NUMBER COMMENT_NODE_ID OWNER/REPO
+```
+The returned `id` is the authoritative thread ID to use for reply and resolve. If it differs from what `get-pr-comments` returned, use the one from this script.
+
 1. **Reply** using [scripts/reply-to-pr-thread](../scripts/reply-to-pr-thread):
 ```bash
-echo "REPLY_TEXT" | bash scripts/reply-to-pr-thread THREAD_ID
+if [ -n "${CLAUDE_SKILL_DIR}" ] && [ -f "${CLAUDE_SKILL_DIR}/scripts/reply-to-pr-thread" ]; then
+  SCRIPT_DIR="${CLAUDE_SKILL_DIR}/scripts"
+else
+  echo "ce-resolve-pr-feedback bundled scripts are unavailable in this harness; post the reply with gh api or gh pr comment as appropriate." >&2
+  exit 1
+fi
+
+echo "REPLY_TEXT" | bash "$SCRIPT_DIR/reply-to-pr-thread" THREAD_ID
 ```
+Check that the returned comment URL contains the correct `OWNER/REPO` and PR number before proceeding.
 
 2. **Resolve** using [scripts/resolve-pr-thread](../scripts/resolve-pr-thread):
 ```bash
-bash scripts/resolve-pr-thread THREAD_ID
+if [ -n "${CLAUDE_SKILL_DIR}" ] && [ -f "${CLAUDE_SKILL_DIR}/scripts/resolve-pr-thread" ]; then
+  SCRIPT_DIR="${CLAUDE_SKILL_DIR}/scripts"
+else
+  echo "ce-resolve-pr-feedback bundled scripts are unavailable in this harness; resolve the thread with gh api if supported." >&2
+  exit 1
+fi
+
+bash "$SCRIPT_DIR/resolve-pr-thread" THREAD_ID
 ```
 
 ### PR comments and review bodies
@@ -186,7 +223,14 @@ Include enough quoted context in the reply so the reader can follow which commen
 Re-fetch feedback to confirm resolution:
 
 ```bash
-bash scripts/get-pr-comments PR_NUMBER
+if [ -n "${CLAUDE_SKILL_DIR}" ] && [ -f "${CLAUDE_SKILL_DIR}/scripts/get-pr-comments" ]; then
+  SCRIPT_DIR="${CLAUDE_SKILL_DIR}/scripts"
+else
+  echo "ce-resolve-pr-feedback bundled scripts are unavailable in this harness; use the fallback gh commands from Step 1." >&2
+  exit 1
+fi
+
+bash "$SCRIPT_DIR/get-pr-comments" PR_NUMBER
 ```
 
 The `review_threads` array should be empty (except `needs-human` items).
@@ -244,6 +288,6 @@ Still pending from a previous run (count):
 
 If a blocking question tool is available, use it to ask about all pending decisions (both new `needs-human` and previous-run pending) together. If there are only pending decisions and no new work was done, the summary is just the pending items.
 
-Use the platform's blocking question tool: `AskUserQuestion` in Claude Code (call `ToolSearch` with `select:AskUserQuestion` first if its schema isn't loaded), `request_user_input` in Codex, `ask_user` in Gemini, `ask_user` in Pi (requires the `pi-ask-user` extension). Use it to present the decisions and wait for the user's response. After they decide, process the remaining items: fix the code, compose the reply, post it, and resolve the thread.
+Use the platform's blocking question tool: `AskUserQuestion` in Claude Code (call `ToolSearch` with `select:AskUserQuestion` first if its schema isn't loaded), `request_user_input` in Codex, `ask_question` in Antigravity CLI (`agy`), `ask_user` in Pi (requires the `pi-ask-user` extension). Use it to present the decisions and wait for the user's response. After they decide, process the remaining items: fix the code, compose the reply, post it, and resolve the thread.
 
 Fall back to presenting the decisions in the summary output and waiting in conversation only when no blocking tool exists in the harness or the call errors (e.g., Codex edit modes) — not because a schema load is required. Never silently skip. If the user doesn't respond, the items remain open on the PR for later handling.

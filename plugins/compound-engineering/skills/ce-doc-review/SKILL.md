@@ -1,12 +1,12 @@
 ---
 name: ce-doc-review
-description: Review requirements or plan documents using parallel persona agents that surface role-specific issues. Use when a requirements document or plan document exists and the user wants to improve it.
+description: Review requirements, plans, or specs with role-specific lenses. Use when the user wants to improve an existing planning document.
 argument-hint: "[mode:headless] [path/to/document.md]"
 ---
 
 # Document Review
 
-Review requirements or plan documents through multi-persona analysis. Dispatches specialized reviewer agents in parallel, auto-applies `safe_auto` fixes, and routes remaining findings through a four-option interaction (per-finding walk-through, auto-resolve with best judgment, Append-to-Open-Questions, Report-only) for user decision.
+Review requirements or plan documents through multi-persona analysis. Dispatches generic subagents seeded with skill-local reviewer prompt assets, auto-applies `safe_auto` fixes, and routes remaining findings through a four-option interaction (per-finding walk-through, auto-resolve with best judgment, Append-to-Open-Questions, Report-only) for user decision.
 
 ## Interactive mode rules
 
@@ -124,34 +124,42 @@ Tell the user which personas will review and why. For conditional personas, incl
 
 ```
 Reviewing with:
-- ce-coherence-reviewer (always-on)
-- ce-feasibility-reviewer (always-on)
-- ce-scope-guardian-reviewer -- plan has 12 requirements across 3 priority levels
-- ce-security-lens-reviewer -- plan adds API endpoints with auth flow
+- coherence-reviewer (always-on)
+- feasibility-reviewer (always-on)
+- scope-guardian-reviewer -- plan has 12 requirements across 3 priority levels
+- security-lens-reviewer -- plan adds API endpoints with auth flow
 ```
 
 ### Build Agent List
 
 Always include:
-- `ce-coherence-reviewer`
-- `ce-feasibility-reviewer`
+- `coherence-reviewer`
+- `feasibility-reviewer`
 
 Add activated conditional personas:
-- `ce-product-lens-reviewer`
-- `ce-design-lens-reviewer`
-- `ce-security-lens-reviewer`
-- `ce-scope-guardian-reviewer`
-- `ce-adversarial-document-reviewer`
+- `product-lens-reviewer`
+- `design-lens-reviewer`
+- `security-lens-reviewer`
+- `scope-guardian-reviewer`
+- `adversarial-document-reviewer`
 
 ### Dispatch
 
-Dispatch agents using **bounded parallelism** with the platform's subagent primitive (e.g., `Agent` in Claude Code, `spawn_agent` in Codex, `subagent` in Pi via the `pi-subagents` extension). Omit the `mode` parameter so the user's configured permission settings apply. Respect the current harness's active-subagent limit: queue selected reviewers, dispatch only as many as the harness accepts, and fill freed slots as reviewers complete. Treat active-agent/thread/concurrency-limit spawn errors as backpressure, not reviewer failure: leave the reviewer queued and retry after a slot frees. Record a reviewer as failed only after a successful dispatch times out/fails, or when dispatch fails for a non-capacity reason.
+Dispatch generic subagents using **bounded parallelism** with the platform's subagent primitive (e.g., `Agent` in Claude Code, `spawn_agent` in Codex) where available; otherwise run the work inline or serially. Omit the `mode` parameter so the user's configured permission settings apply. Respect the current harness's active-subagent limit: queue selected reviewers, dispatch only as many as the harness accepts, and fill freed slots as reviewers complete. Treat active-agent/thread/concurrency-limit spawn errors as backpressure, not reviewer failure: leave the reviewer queued and retry after a slot frees. Record a reviewer as failed only after a successful dispatch times out/fails, or when dispatch fails for a non-capacity reason.
 
-Each agent receives the prompt built from the subagent template included below with these variables filled:
+For each selected reviewer, read the matching skill-local prompt asset at `references/personas/<reviewer-name>.md` and pass its full content as `{persona_file}`. Do not dispatch standalone agents by type/name and do not rely on platform-level custom-agent registration.
+
+**Model tiering lives here, not in prompt assets.** Local prompt files have no frontmatter and carry no model metadata. Apply these dispatch-time preferences when the platform exposes a known model override; otherwise omit the override and inherit the parent model rather than guessing a platform-specific model name:
+
+- `coherence-reviewer`: cheapest capable extraction/reasoning tier.
+- `design-lens-reviewer`, `security-lens-reviewer`, `scope-guardian-reviewer`: platform mid-tier model.
+- `feasibility-reviewer`, `product-lens-reviewer`, `adversarial-document-reviewer`: inherit the parent model unless the harness has an established high-capability review tier.
+
+Each subagent receives the prompt built from the subagent template included below with these variables filled:
 
 | Variable | Value |
 |----------|-------|
-| `{persona_file}` | Full content of the agent's markdown file |
+| `{persona_file}` | Full content of the selected local prompt asset from `references/personas/` |
 | `{schema}` | Content of the findings schema included below |
 | `{document_type}` | "requirements" or "plan" from Phase 1 classification |
 | `{document_path}` | Path to the document |
@@ -159,7 +167,7 @@ Each agent receives the prompt built from the subagent template included below w
 | `{document_content}` | Full text of the document |
 | `{decision_primer}` | Cumulative prior-round decisions in the current session, or an empty `<prior-decisions>` block on round 1. See "Decision primer" below. |
 
-Pass each agent the **full document** — do not split into sections.
+Pass each subagent the **full document** — do not split into sections.
 
 ### Decision primer
 
@@ -198,7 +206,7 @@ Accumulate across all rounds in the current session. Skip, Defer, and Acknowledg
 
 Cross-session persistence is out of scope. A new invocation of ce-doc-review on the same document starts with a fresh round 1 and no carried primer, even if prior sessions deferred findings into the document's Open Questions section.
 
-**Error handling:** If an agent fails or times out, proceed with findings from agents that completed. Note the failed agent in the Coverage section. Do not block the entire review on a single agent failure.
+**Error handling:** If a subagent fails or times out, proceed with findings from subagents that completed. Note the failed reviewer in the Coverage section. Do not block the entire review on a single reviewer failure.
 
 **Dispatch limit:** Even at maximum (7 agents), use bounded parallel dispatch. If the harness cap is lower than the selected team size, queue the remainder and launch them as active reviewers complete.
 
@@ -219,3 +227,5 @@ For the four-option routing question and per-finding walk-through (interactive m
 ### Findings Schema
 
 @./references/findings-schema.json
+
+Selected reviewer prompt assets live under `references/personas/`. Read only the prompt files selected for the current review.

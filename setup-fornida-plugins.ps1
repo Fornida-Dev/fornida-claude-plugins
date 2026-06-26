@@ -29,6 +29,11 @@
     Owner: Fornida MSP / Systems (it@fornida.com)
     Repo:  fornida-claude-plugins
     Provenance + pinned SHAs: VENDOR.md. Overlays: overlays/ + apply-overlays.ps1.
+
+    `claude plugin validate .` MUTATES the working tree (regenerates skill manifests).
+    Run it AFTER this script and clean its churn (git checkout -- <path>) before
+    committing — the pre-commit guard below aborts if unrelated paths are dirty so
+    validate edits can't ride along in a vendor commit.
 #>
 
 param(
@@ -41,14 +46,18 @@ $repoRoot = $PSScriptRoot
 
 # Plugin manifest: name, owner/repo, branch, subpath within the upstream repo
 # (empty subpath = whole repo is the plugin). Mirrors .claude-plugin/marketplace.json.
-# NOTE: compound-engineering restructured upstream — the plugin now lives at the
-# repo ROOT (subpath ''), not under plugins/compound-engineering. Its tarball also
-# contains symlinked mirror dirs (.agy, .cursor-plugin, etc.) that Windows tar.exe
-# cannot extract ("Invalid argument"); vendoring CE on Windows needs a git-based
-# fetch or symlink-tolerant extraction — see VENDOR.md "Known limitation". caveman
-# has no such issue and extracts cleanly with tar on every platform.
+# Optional 'exclude' = dir/glob names skipped during extraction (tar --exclude).
+#
+# compound-engineering lives at the upstream repo ROOT (subpath '') and ships
+# dot-prefixed mirror dirs for OTHER tools (Cursor, Codex, Kimi, OpenCode, Pi, Agy,
+# Junie) that the Claude marketplace never uses. One of them (.agy/skills) is a
+# symlink that Windows tar.exe rejects ("Invalid argument"). Excluding the foreign
+# mirrors removes the symlink AND the bloat, and makes CE vendor cleanly on every
+# platform. The real Claude tree (.claude-plugin, .claude, skills, agents, commands,
+# src, assets, docs, scripts, .compound-engineering, top-level docs) is kept.
 $Plugins = @(
-    @{ name = 'compound-engineering'; repo = 'EveryInc/compound-engineering-plugin'; branch = 'main'; subpath = '' },
+    @{ name = 'compound-engineering'; repo = 'EveryInc/compound-engineering-plugin'; branch = 'main'; subpath = '';
+       exclude = @('.agy', '.cursor-plugin', '.codex-plugin', '.kimi-plugin', '.opencode', '.pi', '.agents', '.junie') },
     @{ name = 'caveman';              repo = 'JuliusBrussee/caveman';                branch = 'main'; subpath = '' },
     @{ name = 'superclaude';          repo = 'SuperClaude-Org/SuperClaude_Framework'; branch = 'master'; subpath = 'plugins/superclaude' },
     @{ name = 'github';               repo = 'anthropics/claude-plugins-official';    branch = 'main'; subpath = 'external_plugins/github' },
@@ -77,7 +86,17 @@ foreach ($p in $Plugins) {
     New-Item -ItemType Directory -Path $tmpRoot | Out-Null
     $tarball = Join-Path $tmpRoot 'src.tar.gz'
     gh api "repos/$($p.repo)/tarball/$sha" > $tarball
-    tar -xzf $tarball -C $tmpRoot
+    # Build --exclude args: skip foreign-tool mirror dirs (and the symlinks inside
+    # them) so they never reach the working tree. Patterns anchor under the tarball
+    # top dir (entries are <owner>-<repo>-<sha>/<path>).
+    $tarArgs = @('-xzf', $tarball, '-C', $tmpRoot)
+    if ($p.exclude) {
+        foreach ($ex in $p.exclude) {
+            $tarArgs += "--exclude=*/$ex"
+            $tarArgs += "--exclude=*/$ex/*"
+        }
+    }
+    tar @tarArgs
     $extracted = Get-ChildItem -Path $tmpRoot -Directory | Select-Object -First 1
     $srcPath = if ($p.subpath) { Join-Path $extracted.FullName ($p.subpath -replace '/', [IO.Path]::DirectorySeparatorChar) } else { $extracted.FullName }
     if (-not (Test-Path $srcPath)) { Write-Error "Subpath not found in upstream: $($p.subpath)"; exit 1 }
@@ -108,10 +127,31 @@ Write-Host "=== applying overlays ===" -ForegroundColor Cyan
 & (Join-Path $repoRoot 'verify-overlays.ps1')
 if ($LASTEXITCODE -ne 0) { Write-Error "verify-overlays failed - not committing."; exit 1 }
 
-# 6. Commit on current branch; never push
+# 6. Commit on current branch; never push.
+#    Scope the commit to ONLY the vendored plugin(s) + VENDOR.md, and abort if any
+#    OTHER tracked/untracked path is dirty. This guards against `claude plugin
+#    validate` (run separately) mutating the working tree and having its stray edits
+#    to unrelated plugins ride along in a vendor commit.
 if (-not $NoCommit) {
+    # Guard: a vendor commit must contain ONLY the vendored plugin(s) + VENDOR.md.
+    # Only TRACKED modifications outside that scope are dangerous (they could be
+    # validate-induced churn in unrelated plugins); untracked files ('??') can't
+    # ride along because staging below is explicit, so they're ignored here.
+    $allowed = @('VENDOR.md') + ($Plugins | ForEach-Object { "plugins/$($_.name)/" })
+    $unexpected = git -C $repoRoot status --porcelain | Where-Object { $_ -notmatch '^\?\?' } | ForEach-Object {
+        $path = $_.Substring(3).Trim('"')
+        if (($allowed | Where-Object { $path -eq 'VENDOR.md' -or $path.StartsWith($_) })) { $null } else { $path }
+    } | Where-Object { $_ }
+    if ($unexpected) {
+        Write-Host "ABORT: tracked changes outside the vendored plugin(s):" -ForegroundColor Red
+        $unexpected | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+        Write-Host "Resolve these (e.g. 'git checkout -- <path>' to discard validate churn) and re-run." -ForegroundColor Red
+        exit 1
+    }
+
     $names = ($Plugins | ForEach-Object { $_.name }) -join ', '
-    git -C $repoRoot add plugins VENDOR.md
+    foreach ($p in $Plugins) { git -C $repoRoot add "plugins/$($p.name)" }
+    git -C $repoRoot add VENDOR.md
     git -C $repoRoot commit -m "chore(vendor): re-pin $names to latest upstream; overlays re-applied"
     Write-Host "Committed to current branch (NOT pushed). Publish is a human decision." -ForegroundColor Green
 } else {
