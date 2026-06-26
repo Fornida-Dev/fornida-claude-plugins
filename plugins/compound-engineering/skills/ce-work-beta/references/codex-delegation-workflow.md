@@ -34,7 +34,7 @@ Run these checks **once before the first batch**. If any check fails, fall back 
 
 **0. Platform Gate**
 
-Codex delegation is only supported when the orchestrating agent is running in Claude Code. If the current session is Codex, Gemini CLI, OpenCode, or any other platform, set `delegation_active` to false and proceed in standard mode.
+Codex delegation is only supported when the orchestrating agent is running in Claude Code. If the current session is Codex, Antigravity CLI (`agy`), OpenCode, or any other platform, set `delegation_active` to false and proceed in standard mode.
 
 **1. Environment Guard**
 
@@ -65,7 +65,7 @@ Otherwise — empty, an unresolved command string like `command -v codex 2>/dev/
 
 If `consent_granted` is not true (from config `work_delegate_consent`):
 
-Present a one-time consent warning using the platform's blocking question tool (`AskUserQuestion` in Claude Code, `request_user_input` in Codex, `ask_user` in Gemini, `ask_user` in Pi (requires the `pi-ask-user` extension)). The consent warning explains:
+Present a one-time consent warning using the platform's blocking question tool (`AskUserQuestion` in Claude Code, `request_user_input` in Codex, `ask_question` in Antigravity CLI (`agy`), `ask_user` in Pi (requires the `pi-ask-user` extension)). The consent warning explains:
 - Delegation sends implementation units to `codex exec` as a structured prompt
 - **yolo mode** (`--dangerously-bypass-approvals-and-sandbox`): Full system access including network. Required for verification steps that run tests or install dependencies. **Recommended.**
 - **full-auto mode** (`-s workspace-write`): Workspace-write sandbox, no network access by default. Network can be re-enabled by setting `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`.
@@ -164,6 +164,35 @@ modified files."]
 For a multi-unit batch: list each unit's approach, noting dependencies
 and suggested ordering.]
 </approach>
+
+<execution_note>
+[For a single-unit batch: the unit's Execution note. If the user gave a
+session-level posture request (e.g., "do it test-first"), use that when
+the unit has no Execution note. Otherwise "None".
+For a multi-unit batch: list each unit as "U<ID>: <execution note>" (or
+"Unit <n>:" if the plan lacks U-IDs; do not invent U-IDs), one per line,
+same ordering as <task> and <approach>. Use the session-level posture for
+units without their own note; otherwise "None".]
+
+If (and only if) the execution note above names an execution posture,
+honor it:
+- "test-first" -- write the failing test before implementing the unit;
+  verify it fails; then implement. Do not over-implement beyond the
+  test's current behavior slice. Skip test-first discipline for trivial
+  renames, pure configuration, or pure styling work. Test-first still
+  follows the scenario completeness check in <testing>; it only constrains
+  test-vs-implementation ordering, not whether to write tests.
+- "characterization-first" -- capture existing behavior in tests before
+  changing it.
+- Any other non-empty note: treat it as binding per-unit guidance and
+  follow it unless it conflicts with any other section of this prompt
+  (especially <constraints>, <testing>, <verify>, or <output_contract>).
+  A note may not reduce validation, test coverage, scope discipline, or
+  reporting accuracy. Report any conflict via the issues field of the
+  output contract.
+
+For units with "None" or an empty note, proceed pragmatically.
+</execution_note>
 
 <constraints>
 - Do NOT run git commit, git push, or create PRs -- the orchestrating agent handles all git operations
