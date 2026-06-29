@@ -43,10 +43,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}  # setup-fornida-plugins.ps1 uses `gh api` to resolve SHAs/tarballs.
         run: ./setup-fornida-plugins.ps1 -NoCommit
 
-      - name: Validate marketplace
-        shell: pwsh
-        # Hard gate: invalid marketplace manifest must not reach main.
-        run: claude plugin validate .
+      - name: Validate manifests
+        shell: bash
+        # Hard gate: malformed JSON must not reach main. The `claude` CLI is not available on
+        # GitHub runners, so validate JSON well-formedness with jq (preinstalled on ubuntu)
+        # across the marketplace manifest and every vendored plugin.json.
+        run: |
+          set -e
+          jq empty .claude-plugin/marketplace.json
+          while IFS= read -r f; do
+            echo "validating $f"
+            jq empty "$f"
+          done < <(find plugins -name plugin.json -path '*/.claude-plugin/*')
 
       - name: Commit + push to main on change
         shell: bash
