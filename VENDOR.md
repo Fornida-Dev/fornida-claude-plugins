@@ -3,9 +3,9 @@
 - compound-engineering  <=  github.com/EveryInc/compound-engineering-plugin (repo root; upstream moved plugin out of /plugins/compound-engineering into a monorepo root) @ 240b69efcc9832e02036c802c3f65ba2684424b5 (vendored subset: .claude-plugin/ + skills/ + root docs; src/tests/build toolchain excluded)
 - caveman  <=  github.com/JuliusBrussee/caveman  @ 25d22f864ad68cc447a4cb93aefde918aa4aec9f
 - superclaude  <=  github.com/SuperClaude-Org/SuperClaude_Framework (/plugins/superclaude) @ 226c45cc93b865108843a669c6545d421784b68c
-- github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ 78457a28aabe1122e21ab5027c9fcab5e812b6ac
+- github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ d0c131bd2b109bd6ff6928b11b28eda1fb5b8a8e
 - superpowers  <=  github.com/obra/superpowers  @ 896224c4b1879920ab573417e68fd51d2ccc9072
-- vercel  <=  github.com/vercel/vercel-plugin  @ 5f3f0ad7931ad49d6a4c6ed43ab4bf4781a69f6d
+- vercel  <=  github.com/vercel/vercel-plugin  @ e566f76c2bd89af4158d326186c5c42d8f4f9fa4
 
 ## Fornida overlays (applied ON TOP of the vendored copy)
 

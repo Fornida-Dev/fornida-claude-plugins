@@ -1,0 +1,119 @@
+# Skill Documentation
+
+End-user-facing documentation for compound-engineering plugin skills. Each page covers the skill's high-level purpose, novel mechanics, use cases, and chain position relative to other skills.
+
+For runtime behavior and contributor reference, the `SKILL.md` in each skill's source folder under `skills/` is authoritative.
+
+---
+
+## The compound-engineering core loop
+
+```text
+   [/ce-ideate]       (optional) "What's worth exploring?"
+        │
+        ▼
+┌─→ /ce-brainstorm    "What does this need to be?"
+│       │
+│       ▼
+│   /ce-plan          "What's needed to accomplish this?"
+│       │
+│       ▼
+│   /ce-work          "Build it."
+│       │
+│       ▼
+└── /ce-compound      "Capture what we learned."
+```
+
+`/ce-compound` is the closer that makes the loop *compound*: it writes learnings into `docs/solutions/`, which the next iteration's `/ce-brainstorm` and `/ce-plan` read as grounding — that return arrow is the whole point. `/ce-ideate` is an optional prelude for when you don't yet know what to work on. Everything else in this catalog is either an anchor around the loop or an on-demand tool used when a specific need arises — not a step you walk through every time.
+
+---
+
+## The Core Loop
+
+The steps of every engineering iteration. `/ce-ideate` runs only when you need to find a direction first; the other four run in order per piece of work.
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-ideate`](./ce-ideate.md) | *Optional first step* — discover strong, qualified directions worth exploring with six conceptual frames, warrant requirement, adversarial filtering |
+| [`/ce-brainstorm`](./ce-brainstorm.md) | Define what something should become — collaborative dialogue, named gap lenses, requirements-only unified plan |
+| [`/ce-plan`](./ce-plan.md) | Bound execution with guardrails — enrich unified plans with U-IDs, test scenarios, automatic confidence check; WHAT decisions, not HOW code |
+| [`/ce-work`](./ce-work.md) | Execute against implementation-ready plan guardrails — figure out the HOW with code in front of you, ship through quality gates |
+| [`/ce-compound`](./ce-compound.md) | Close the loop by capturing what you learned into `docs/solutions/` so the next iteration starts smarter — bug track + knowledge track |
+
+---
+
+## Around the Loop
+
+Skills that anchor, feed, or maintain the loop without being steps inside it.
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-strategy`](./ce-strategy.md) | Create or maintain `STRATEGY.md` — the upstream anchor read by `ce-ideate`, `ce-brainstorm`, and `ce-plan` as grounding |
+| [`/ce-product-pulse`](./ce-product-pulse.md) | Outer feedback loop — single-page time-windowed report on usage, performance, errors, followups; saved to `docs/pulse-reports/` as a timeline |
+| [`/ce-compound-refresh`](./ce-compound-refresh.md) | Maintain `docs/solutions/` over time — five outcomes (Keep / Update / Consolidate / Replace / Delete), Interactive + Autofix modes |
+
+---
+
+## On-Demand
+
+Invoked when a specific need arises — not part of any chain.
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-debug`](./ce-debug.md) | Find root causes systematically — causal chain gate, predictions for uncertain links, smart escalation |
+| [`/ce-code-review`](./ce-code-review.md) | Structured code review with skill-local reviewer personas, confidence-gated findings, four modes |
+| [`/ce-doc-review`](./ce-doc-review.md) | Review requirements or plan documents using skill-local reviewer personas — coherence, feasibility, product-lens, design-lens, security-lens, scope-guardian, adversarial |
+| [`/ce-simplify-code`](./ce-simplify-code.md) | Refine recently changed code — reuse, quality, and efficiency review; behavior preservation verified |
+| [`/ce-optimize`](./ce-optimize.md) | Metric-driven iterative optimization loops — three-tier evaluation, parallel experiments, persistence discipline |
+
+---
+
+## Research & Context
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-riffrec-feedback-analysis`](./ce-riffrec-feedback-analysis.md) | Turn raw [Riffrec](https://github.com/kieranklaassen/riffrec) recordings into structured feedback — quick bug or extensive analysis with `ce-brainstorm` handoff |
+
+---
+
+## Git Workflow
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-commit`](./ce-commit.md) | Create a single, well-crafted git commit — convention-aware, sensitive-file-safe, file-level logical splitting |
+| [`/ce-commit-push-pr`](./ce-commit-push-pr.md) | Go from working changes to an open PR with adaptive descriptions — three modes (full workflow / description update / description-only generation) |
+| [`/ce-worktree`](./ce-worktree.md) | Ensure work happens in an isolated git worktree — detect existing isolation, prefer the harness's native worktree tool, fall back to plain git |
+
+---
+
+## Frontend Design
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-polish`](./ce-polish.md) | Conversational UX polish — start dev server, open browser, iterate together; auto-detects 8 frameworks (manual invocation only) |
+
+---
+
+## Collaboration
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-proof`](./ce-proof.md) | Publish, view, comment on, and edit markdown via [Proof](https://www.proofeditor.ai), Every's collaborative editor — Web API and Local Bridge surfaces |
+
+---
+
+## Workflow Utilities
+
+| Skill | Description |
+|-------|-------------|
+| [`/ce-promote`](./ce-promote.md) | Draft user-facing announcement copy for a shipped feature (X, changelog, LinkedIn, email) — voice-matched via the optional Spiral CLI, a lite layer of editorial & social expertise without it, drafts only |
+| [`/ce-resolve-pr-feedback`](./ce-resolve-pr-feedback.md) | Evaluate, fix, and reply to PR review feedback in parallel — including nitpicks |
+| [`/ce-test-browser`](./ce-test-browser.md) | End-to-end browser tests on PR / branch-affected pages using `agent-browser` exclusively |
+| [`/ce-test-xcode`](./ce-test-xcode.md) | Build and test iOS apps on simulator using XcodeBuildMCP — screenshots, logs, human verification |
+| [`/ce-setup`](./ce-setup.md) | Diagnose optional tool capabilities and bootstrap safe project-local config |
+
+---
+
+## See also
+
+For the complete catalog of skills (including those without dedicated docs here), see [`README.md`](../../README.md). Each skill's authoritative runtime spec is in `skills/<skill>/SKILL.md`.
