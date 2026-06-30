@@ -1,20 +1,18 @@
 <#
 .SYNOPSIS
-    Re-vendor Fornida's curated Claude Code plugins from pinned upstream SHAs,
-    then re-apply + verify Fornida overlays. Commits to the current branch; never pushes.
+    Re-vendor Fornida's curated Claude Code plugins RAW from pinned upstream SHAs.
+    Commits to the current branch; never pushes.
 
 .DESCRIPTION
-    Each plugin in $Plugins is vendored (copied in) from a specific upstream repo,
-    pinned to an auditable commit SHA. This script:
+    Each plugin in $Plugins is vendored (copied in) RAW from a specific upstream repo,
+    pinned to an auditable commit SHA. No Fornida overlays — all Fornida force/
+    customization lives in the kit (fornida-project-kit), not here, so these stay clean
+    and re-vendorable. This script:
       1. Resolves the latest upstream SHA on the plugin's branch (gh api).
       2. Downloads the repo tarball at that SHA and extracts the vendored subpath.
       3. Replaces plugins/<name>/ with the fresh tree (clean replace).
       4. Rewrites the matching VENDOR.md provenance line to the new SHA.
-      5. Runs apply-overlays.ps1 then verify-overlays.ps1 so Fornida overlays
-         (e.g. the caveman forced output style + hook-neutralized plugin.json)
-         are restored and validated automatically — an update can never silently
-         drop an overlay.
-      6. Stages + commits on the CURRENT branch and STOPS. It does NOT push.
+      5. Stages + commits on the CURRENT branch and STOPS. It does NOT push.
          Publishing to the fleet is a human decision (org: no deploy without approval).
 
     Requires: gh (authenticated), tar (bundled with Windows 10+/pwsh), git.
@@ -23,12 +21,12 @@
     Optional. Update only this plugin (e.g. -Plugin caveman). Default: all.
 
 .PARAMETER NoCommit
-    Vendor + overlay + verify but do not git-commit (for inspection / dry compare).
+    Vendor but do not git-commit (for inspection / dry compare).
 
 .NOTES
     Owner: Fornida MSP / Systems (it@fornida.com)
     Repo:  fornida-claude-plugins
-    Provenance + pinned SHAs: VENDOR.md. Overlays: overlays/ + apply-overlays.ps1.
+    Provenance + pinned SHAs: VENDOR.md. Force/customization: the kit (fornida-project-kit).
 
     `claude plugin validate .` MUTATES the working tree (regenerates skill manifests).
     Run it AFTER this script and clean its churn (git checkout -- <path>) before
@@ -121,13 +119,10 @@ foreach ($p in $Plugins) {
 
 if (Test-Path $tmpRoot) { Remove-Item -Recurse -Force $tmpRoot }
 
-# 5. Re-apply + verify Fornida overlays (loud-fail on drift)
-Write-Host "=== applying overlays ===" -ForegroundColor Cyan
-& (Join-Path $repoRoot 'apply-overlays.ps1')
-& (Join-Path $repoRoot 'verify-overlays.ps1')
-if ($LASTEXITCODE -ne 0) { Write-Error "verify-overlays failed - not committing."; exit 1 }
+# (Plugins are vendored RAW — no Fornida overlays. Fornida force/customization lives in
+#  the kit, fornida-project-kit, via its own forced output style. See VENDOR.md.)
 
-# 6. Commit on current branch; never push.
+# Commit on current branch; never push.
 #    Scope the commit to ONLY the vendored plugin(s) + VENDOR.md, and abort if any
 #    OTHER tracked/untracked path is dirty. This guards against `claude plugin
 #    validate` (run separately) mutating the working tree and having its stray edits

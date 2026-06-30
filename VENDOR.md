@@ -7,52 +7,17 @@
 - superpowers  <=  github.com/obra/superpowers  @ 896224c4b1879920ab573417e68fd51d2ccc9072
 - vercel  <=  github.com/vercel/vercel-plugin  @ e566f76c2bd89af4158d326186c5c42d8f4f9fa4
 
-## Fornida overlays (applied ON TOP of the vendored copy)
+## No Fornida overlays — plugins are vendored RAW
 
-Some vendored plugins carry Fornida-specific edits that must be re-applied after
-every re-vendor, because re-pinning re-copies the upstream tree and clobbers them.
-Source of truth lives in `overlays/`; `apply-overlays.ps1` re-applies it.
+These plugins carry **no** Fornida-specific edits. Force/customization (e.g. the
+forced caveman terse output style, ultra default) lives in the **kit**
+(`fornida-project-kit`, repo `fornida-claude-project_instructions`) via its own
+`output-styles/` — `force-for-plugin` applies from any enabled plugin, and the kit
+is a required install. Keeping this repo raw means plugins re-vendor to current
+upstream with no overlay to clobber or re-apply.
 
-- **caveman** — Fornida-authored overlay (`overlays/caveman/`):
-  - `output-styles/caveman-ultra.md` — the **forced** default terse style
-    (`force-for-plugin: true`, `keep-coding-instructions: true`). Makes every
-    Fornida Claude default to **ultra** (max compression) automatically (lower
-    token usage is always preferred), with code/commits/security/irreversible
-    actions written normally. This is the load-bearing activation mechanism.
-    `caveman.md` (full) and `caveman-lite.md` ship as **selectable** lower tiers.
-  - `plugin.json` — hook-neutralized: the upstream Node `SessionStart`
-    (`caveman-activate.js`) and `UserPromptSubmit` (`caveman-mode-tracker.js`)
-    hook wiring is removed. The output style replaces them, and dropping the Node
-    dependency keeps activation cross-platform-safe (no Node-on-PATH requirement).
-    `src/hooks/` files are left on disk; only the `plugin.json` wiring is removed.
-
-  Trade-off: removing the tracker hook means there is no durable per-user opt-out
-  while caveman is enabled — `/output-style` and a typed `stop caveman` drop terse
-  for the current session only; `force-for-plugin` re-applies next session.
-
-  - `output-styles/caveman.md` (full) + `output-styles/caveman-lite.md` — selectable
-    (NON-forced) lower-intensity tiers. Users pick them per-session via `/output-style`
-    to opt *down* from the forced ultra default; ultra re-applies next session. Exactly
-    one style is forced (`caveman-ultra.md`); `verify-overlays.ps1` enforces that invariant.
-
-  - **`.caveman/config.json` is inert here.** Upstream `25d22f86` added a repo-local
-    `.caveman/config.json` + natural-language brevity triggers, but they are read
-    ONLY by the Node hooks (`src/hooks/caveman-config.js` and the activate/tracker
-    hooks) — which our overlay removes. No MCP server, tool, or command reads them.
-    So the config mechanism has no effect in the Fornida setup; the forced output
-    style is the single source of terse behavior. No conflict.
-
-### Re-vendor re-applies overlays automatically
-
-`setup-fornida-plugins.ps1` (now version-controlled in this repo) runs
-`apply-overlays.ps1` + `verify-overlays.ps1` automatically after vendoring, and
-aborts before committing if verify fails. So a re-pin can never silently drop the
-caveman overlay. To re-apply manually outside a full re-vendor:
-
-```powershell
-.\apply-overlays.ps1     # restore Fornida overlay onto plugins/caveman
-.\verify-overlays.ps1    # FAILS LOUD if hooks returned or a style went missing
-```
+(Earlier versions overlaid a forced output style + hook-neutralized `plugin.json`
+onto caveman here; that was moved to the kit so this repo stays a clean passthrough.)
 
 ## Known limitation — compound-engineering on Windows
 
