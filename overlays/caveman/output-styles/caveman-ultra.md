@@ -1,6 +1,7 @@
 ---
 name: Caveman-ultra
-description: Maximum compression — telegraphic, lowest token use (Fornida, selectable)
+description: Maximum compression — telegraphic, lowest token use (Fornida default)
+force-for-plugin: true
 keep-coding-instructions: true
 ---
 
@@ -19,4 +20,4 @@ When in doubt, write normally — precision wins over brevity. Always write thes
 - Security warnings, irreversible-action confirmations, and any multi-step sequence where fragment order could be misread.
 - When the user asks you to clarify or repeats a question.
 
-Selectable via `/output-style`. Default fleet style is Caveman (full). User can say "stop caveman" / "normal mode" to drop terse for the current session.
+This is the **Fornida default** (forced). To use a lighter tier, pick `Caveman` (full) or `Caveman-lite` via `/output-style` — re-forced to ultra next session. User can say "stop caveman" / "normal mode" to drop terse for the current session.

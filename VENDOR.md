@@ -14,11 +14,12 @@ every re-vendor, because re-pinning re-copies the upstream tree and clobbers the
 Source of truth lives in `overlays/`; `apply-overlays.ps1` re-applies it.
 
 - **caveman** — Fornida-authored overlay (`overlays/caveman/`):
-  - `output-styles/caveman.md` — a **forced** terse output style
+  - `output-styles/caveman-ultra.md` — the **forced** default terse style
     (`force-for-plugin: true`, `keep-coding-instructions: true`). Makes every
-    Fornida Claude default to terse output automatically (lower token usage is
-    always preferred), with code/commits/security/irreversible actions written
-    normally. This is the load-bearing activation mechanism.
+    Fornida Claude default to **ultra** (max compression) automatically (lower
+    token usage is always preferred), with code/commits/security/irreversible
+    actions written normally. This is the load-bearing activation mechanism.
+    `caveman.md` (full) and `caveman-lite.md` ship as **selectable** lower tiers.
   - `plugin.json` — hook-neutralized: the upstream Node `SessionStart`
     (`caveman-activate.js`) and `UserPromptSubmit` (`caveman-mode-tracker.js`)
     hook wiring is removed. The output style replaces them, and dropping the Node
@@ -29,10 +30,10 @@ Source of truth lives in `overlays/`; `apply-overlays.ps1` re-applies it.
   while caveman is enabled — `/output-style` and a typed `stop caveman` drop terse
   for the current session only; `force-for-plugin` re-applies next session.
 
-  - `output-styles/caveman-lite.md` + `output-styles/caveman-ultra.md` — selectable
-    (NON-forced) intensity tiers that preserve caveman's lite/full/ultra functionality
-    without the Node hooks. Users pick them per-session via `/output-style`; only
-    `caveman.md` is forced. `verify-overlays.ps1` asserts exactly one forced style.
+  - `output-styles/caveman.md` (full) + `output-styles/caveman-lite.md` — selectable
+    (NON-forced) lower-intensity tiers. Users pick them per-session via `/output-style`
+    to opt *down* from the forced ultra default; ultra re-applies next session. Exactly
+    one style is forced (`caveman-ultra.md`); `verify-overlays.ps1` enforces that invariant.
 
   - **`.caveman/config.json` is inert here.** Upstream `25d22f86` added a repo-local
     `.caveman/config.json` + natural-language brevity triggers, but they are read

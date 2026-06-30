@@ -1,7 +1,6 @@
 ---
 name: Caveman
-description: Terse, token-efficient responses by default (Fornida)
-force-for-plugin: true
+description: Terse, token-efficient responses — full tier (Fornida, selectable)
 keep-coding-instructions: true
 ---
 
