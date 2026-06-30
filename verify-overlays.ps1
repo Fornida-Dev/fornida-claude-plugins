@@ -25,28 +25,22 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = $PSScriptRoot
 $problems = @()
 
-# --- Check 1: forced default present + correct, AND exactly one forced style ---
+# --- Check 1: exactly ONE caveman style is forced, and it keeps coding instructions ---
+# (Which file is forced is a Fornida choice — currently caveman-ultra.md. The invariant
+# is "exactly one forced + it preserves coding behavior", not which file it is.)
 $styleDir = Join-Path $repoRoot 'plugins\caveman\output-styles'
-$stylePath = Join-Path $styleDir 'caveman.md'
-if (-not (Test-Path -LiteralPath $stylePath)) {
-    $problems += "Missing forced output style: $stylePath (run apply-overlays.ps1)"
+if (-not (Test-Path -LiteralPath $styleDir)) {
+    $problems += "Missing output-styles dir: $styleDir (run apply-overlays.ps1)"
 } else {
-    $style = Get-Content -LiteralPath $stylePath -Raw
-    if ($style -notmatch '(?m)^\s*force-for-plugin:\s*true\s*$') {
-        $problems += "Default output style missing 'force-for-plugin: true': $stylePath"
-    }
-    if ($style -notmatch '(?m)^\s*keep-coding-instructions:\s*true\s*$') {
-        $problems += "Default output style missing 'keep-coding-instructions: true': $stylePath"
-    }
-}
-# Exactly one caveman style may force itself (selectable lite/ultra must NOT force).
-if (Test-Path -LiteralPath $styleDir) {
-    $forced = @(Get-ChildItem -LiteralPath $styleDir -Filter '*.md' | Where-Object {
+    $styles = @(Get-ChildItem -LiteralPath $styleDir -Filter '*.md')
+    $forced = @($styles | Where-Object {
         (Get-Content -LiteralPath $_.FullName -Raw) -match '(?m)^\s*force-for-plugin:\s*true\s*$'
     })
     if ($forced.Count -ne 1) {
         $names = ($forced | ForEach-Object { $_.Name }) -join ', '
-        $problems += "Expected exactly 1 forced caveman style, found $($forced.Count): [$names]. Only caveman.md may set force-for-plugin: true."
+        $problems += "Expected exactly 1 forced caveman style, found $($forced.Count): [$names]."
+    } elseif ((Get-Content -LiteralPath $forced[0].FullName -Raw) -notmatch '(?m)^\s*keep-coding-instructions:\s*true\s*$') {
+        $problems += "Forced style $($forced[0].Name) missing 'keep-coding-instructions: true' (would degrade coding behavior)."
     }
 }
 
