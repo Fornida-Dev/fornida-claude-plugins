@@ -23,7 +23,7 @@ bun run release:validate  # check plugin/marketplace consistency
 - **Safety:** Do not delete or overwrite user data. Avoid destructive commands.
 - **Testing:** Run `bun test` after changes that affect parsing, conversion, or output.
 - **Release versioning:** Releases are prepared by release automation, not normal feature PRs. The repo has one root plugin/package release component (`compound-engineering`) plus marketplace components (`marketplace`, `cursor-marketplace`). GitHub release PRs and GitHub Releases are the canonical release-notes surface for new releases; root `CHANGELOG.md` is only a pointer to that history. Use conventional titles such as `feat:` and `fix:` so release automation can classify change intent, but do not hand-bump release-owned versions or hand-author release notes in routine PRs.
-- **Output Paths:** Keep OpenCode output at `opencode.json` and `.opencode/{agents,skills,plugins}`. For OpenCode, command go to `~/.config/opencode/commands/<name>.md`; `opencode.json` is deep-merged (never overwritten wholesale).
+- **Output Paths:** Keep OpenCode output at `opencode.json` and `.opencode/{agents,skills,plugins}`. For OpenCode, commands go to `~/.config/opencode/commands/<name>.md`; `opencode.json` is deep-merged (never overwritten wholesale).
 - **Scratch Space:** Default to OS temp. Use `.context/` only when explicitly justified by the rules below.
   - **Default: OS temp** — covers most scratch, including per-run throwaway AND cross-invocation reusable, regardless of whether a repo is present or whether other skills may read the files. A stable OS-temp prefix handles cross-skill and cross-invocation coordination equally well as an in-repo path; repo-adjacency is rarely the relevant property.
     - **Per-run throwaway**: `mktemp -d -t <prefix>-XXXXXX` (OS handles cleanup). Use for files consumed once and discarded — captured screenshots, stitched GIFs, intermediate build outputs, recordings, delegation prompts/results, single-run checkpoints. The resulting path is opaque (on macOS it resolves under `$TMPDIR`/`/var/folders/...`) — that is appropriate for throwaway files users are not meant to access.
@@ -70,6 +70,7 @@ Do not assume a repo change is "just CLI" or "just plugin" without checking whic
 When changing plugin content:
 
 - Update substantive docs like `README.md` when the plugin behavior, inventory, or usage changes.
+- When adding a user-facing skill, document it: create a `docs/skills/<skill-name>.md` page (purpose, novel mechanics, when to use, chain position — follow the shape of the existing pages) and add a catalog row under the right category in `docs/skills/README.md`, alongside the root `README.md` inventory row and the skill-count bump in `tests/release-metadata.test.ts`. Keep these in sync when a skill's purpose or inventory changes. This is convention, not yet validated by a test, so it is easy to miss — most skills have a page; the few that don't (e.g. `lfg`, `ce-dogfood-beta`) are the exception, not the rule.
 - Do not hand-bump release-owned versions in plugin or marketplace manifests.
 - Do not hand-add release entries to `CHANGELOG.md` or treat it as the canonical source for new releases.
 - Run `bun run release:validate` if agents, commands, skills, MCP servers, or release-owned descriptions/counts may have changed.
@@ -129,6 +130,23 @@ A line earns its place when it does one of these:
 - Supplies domain knowledge the agent would not otherwise have.
 
 An adjective is fine **only** when immediately operationalized by a concrete rule (e.g., "keep outputs concise — only enough detail to support the next decision"). The adjective alone is framing; the operationalization is the instruction. Do not append motivational rationale ("the quality of everything depends on this") to a directive that already stands on its own, and do not restate an instruction the same file already gives unless it is deliberate spaced repetition placed where drift occurs.
+
+### Inline the Trigger, Not the Content
+
+SKILL.md loads at session start; references load on demand. That asymmetry sets what belongs where, and the resolution is *what* you inline, not *how much*.
+
+A **load-bearing instruction** — one that MUST fire reliably: the action, the bare routing that invokes the next step, the instruction to load the reference itself — belongs inline at the top of its phase, because an agent that never opened the reference would otherwise stop or guess (`docs/solutions/skill-design/post-menu-routing-belongs-inline.md`).
+
+But do **not** inline a *summary of what the reference contains*. It backfires twice:
+
+- **Drift.** The two copies diverge silently and the agent follows whichever one loaded. When a load-bearing block genuinely must appear in two always-loaded places, guard the copies with a parity test rather than trusting them to stay in sync.
+- **Suppressed load.** A paraphrase suppresses the very load it sits beside — an agent that already has a workable inline version judges it "has enough" and never opens the file, so the reference's templates, shaping rules, and examples never reach it. For a reference that should always load, keep the inline alternative strictly load-instruction-only.
+
+Test: if the inline text is complete enough to act on without the reference, the agent will — so inline only what is incomplete by design ("act, then read X"). The inline part should create demand for the reference, not substitute for it.
+
+### Extract Conditional and Late-Sequence Blocks
+
+Skill content carried from trigger time rides in every subsequent message — every tool call, agent dispatch, and response — so the cost compounds across a session, and more for skills that orchestrate many calls. Extract a block to `references/` when it is **conditional** (executes only under specific conditions) or **late-sequence** (needed only after many prior calls) *and* is a meaningful share of the skill (~20%+). Replace it with a 1-3 line stub stating the condition and a backtick path (e.g., "Read `references/deepening-workflow.md`"). Never use `@` for an extracted block — `@` inlines at load time and defeats the extraction. The always-on trigger from "Inline the Trigger, Not the Content" stays inline; only the conditional substance moves.
 
 ## Coding Conventions
 
@@ -201,6 +219,23 @@ Why this matters:
 If two skills need the same supporting file, duplicate it into each skill's directory. Prefer small, self-contained reference files over shared dependencies.
 
 > **Note (March 2026):** This constraint reflects current Claude Code skill resolution behavior and known path-resolution bugs ([#11011](https://github.com/anthropics/claude-code/issues/11011), [#17741](https://github.com/anthropics/claude-code/issues/17741), [#12541](https://github.com/anthropics/claude-code/issues/12541)). If Anthropic introduces a shared-files mechanism or cross-skill imports in the future, this guidance should be revisited with supporting documentation.
+
+## Shared Repo-Grounding Profile Cache
+
+Repo-grounding skills (`ce-pov`, `ce-plan`, `ce-optimize`, `ce-ideate`, `ce-brainstorm`, `ce-code-review`, plus lighter consumers `ce-compound` — which still derives **and persists** on a miss — and `ce-debug`, which only opportunistically reads `conventions.testing` and never derives/persists) reuse one cached **question-agnostic project profile** (stack, deps, conventions, structure) instead of each re-deriving it. The profile is git-keyed and stored at `/tmp/compound-engineering/repo-profile/<root-sha>/<head-sha>.json`.
+
+The mechanism is three **byte-duplicated** assets per consuming skill (the plugin has no cross-skill import — see "File References in Skills"):
+
+- `references/repo-profile-cache.md` — the schema + protocol (authoritative; read it before wiring a new consumer).
+- `scripts/repo-profile-cache.py` — deterministic `get`/`put`, invoked via the `SKILL_DIR` anchor (never the legacy `${CLAUDE_SKILL_DIR}` guard).
+- `references/agents/repo-profiler.md` — the persona that derives the profile on a miss.
+
+Rules:
+
+- A consumer resolves the agnostic profile through the cache (`get` → HIT load / MISS derive-and-`put` / NO-CACHE derive-fresh), then runs **only its question-specific grounding fresh**. The cache is an optimization, never a correctness dependency, and must never let a stale profile change an output.
+- **Always re-globbed fresh, never cached:** the `docs/solutions/` enumeration and subdirectory-scoped instruction files. Caching them would risk serving a stale match (e.g. a just-written learning), and re-globbing is ~free.
+- **Adding a consumer:** drop byte-identical copies of the three assets into the skill, add its name to `CONSUMER_SKILLS` in `tests/repo-profile-cache-parity.test.ts`, and wire its grounding phase. The parity test guards *file* drift; the per-consumer `skill-creator` eval (agnostic-from-cache, question-specific-fresh) guards *integration* drift.
+- Any change to the schema or protocol must be edited in **all** copies (the parity test fails otherwise) and bump `PROFILE_SCHEMA_VERSION` in the helper so older cache entries invalidate. Renaming or moving a profile **field** additionally requires updating every consumer `SKILL.md` that reads a named field path (grep the consumers for it, e.g. `conventions.testing`, `vocabulary`) — those per-skill field reads are not byte-duplicated, so the parity test does not guard them.
 
 ## Platform-Specific Variables in Skills
 

@@ -135,6 +135,116 @@ describe("ce-plan post-generation menu routing", () => {
     ).toBe(true)
   })
 
+  test("Codex goal handoff is capability-based and menu-cap aware", () => {
+    for (const [label, body] of [
+      ["SKILL.md", SKILL_BODY],
+      ["plan-handoff.md", HANDOFF_BODY],
+    ] as const) {
+      expect(
+        body.includes("top-level `/goal` command"),
+        `${label} must not gate Codex goal handoff on a literal top-level /goal command; Codex exposes goal mode through create_goal.`,
+      ).toBe(false)
+      expect(
+        body.includes("hosts with a `/goal` command"),
+        `${label} must not describe goal availability as slash-command-only; use goal capability and Codex create_goal instead.`,
+      ).toBe(false)
+      expect(
+        /(?:Codex [`"]?request_user_input[`"]?[\s\S]{0,120}no option cap|no option cap[\s\S]{0,120}Codex [`"]?request_user_input[`"]?)/i.test(body),
+        `${label} must not claim Codex request_user_input has no option cap; current Codex question tools only allow 2-3 explicit options.`,
+      ).toBe(false)
+
+      expect(
+        body.includes("create_goal") && /goal capability/i.test(body),
+        `${label} must explicitly treat Codex create_goal as goal capability so the /goal option renders in Codex app runs.`,
+      ).toBe(true)
+      expect(
+        /request_user_input[\s\S]{0,120}2-3 explicit options/i.test(body),
+        `${label} must document the Codex request_user_input 2-3 option cap so larger handoff menus use numbered chat instead of trimming choices.`,
+      ).toBe(true)
+    }
+  })
+
+  test("completion contract is visible before the workflow and guarded at the end", () => {
+    const contractStart = SKILL_BODY.indexOf("## Mandatory Completion Contract")
+    const interactionStart = SKILL_BODY.indexOf("## Interaction Method")
+    expect(
+      contractStart,
+      "ce-plan SKILL.md must keep the Mandatory Completion Contract near the top so agents see the handoff boundary before entering the workflow.",
+    ).toBeGreaterThan(-1)
+    expect(
+      interactionStart,
+      "ce-plan SKILL.md no longer contains the Interaction Method heading — update this test anchor if the top section was restructured.",
+    ).toBeGreaterThan(-1)
+    expect(
+      contractStart,
+      "Mandatory Completion Contract must appear before Interaction Method, not only after Phase 5.4, so 'create the plan and stop' does not look like completion.",
+    ).toBeLessThan(interactionStart)
+
+    const topContract = SKILL_BODY.slice(contractStart, interactionStart)
+    expect(
+      /Every normal interactive `ce-plan` branch that produces a plan artifact or checkpoint is incomplete until its owning handoff question is presented/i.test(topContract),
+      "Top completion contract must state that artifact/checkpoint branches are incomplete until their owning handoff question is presented.",
+    ).toBe(true)
+    expect(
+      /software implementation-plan runs[\s\S]{0,120}Phase 5\.4[\s\S]{0,120}handoff menu/i.test(topContract),
+      "Top completion contract must state that software implementation-plan runs are incomplete until the Phase 5.4 handoff menu is presented.",
+    ).toBe(true)
+    expect(
+      /Non-software plan-seeking and approach-altitude branches[\s\S]{0,160}do not force those branches through Phase 5\.4/i.test(topContract),
+      "Top completion contract must preserve branch-owned handoffs for non-software plan-seeking and approach-altitude branches.",
+    ).toBe(true)
+    expect(
+      /Answer-seeking is the exception:[\s\S]{0,140}may end after delivering the answer unless[\s\S]{0,100}offer save\/share/i.test(topContract),
+      "Top completion contract must allow answer-seeking to end after the answer unless universal-planning says to offer save/share.",
+    ).toBe(true)
+    expect(
+      /intermediate milestones, not completion/i.test(topContract),
+      "Top completion contract must say writing/reviewing the plan are intermediate milestones, not completion.",
+    ).toBe(true)
+    expect(
+      /only ["“]create a plan["”][\s\S]{0,160}run [`']?ce-doc-review[`']?/i.test(topContract),
+      "Top completion contract must make 'user only asked to create a plan / run ce-doc-review' non-exempt.",
+    ).toBe(true)
+    expect(
+      /Plan ready at `<absolute path to plan>`\. What would you like to do next\?/i.test(topContract),
+      "Top completion contract must include the literal Phase 5.4 handoff question.",
+    ).toBe(true)
+    expect(
+      /headless review state or documented skip state is summarized/i.test(topContract),
+      "Top completion contract must allow documented skip-state summaries, not only headless review summaries.",
+    ).toBe(true)
+
+    const checklistStart = SKILL_BODY.indexOf("**Final pre-response checklist:**")
+    const completionStart = SKILL_BODY.indexOf("**Completion check:**")
+    expect(
+      checklistStart,
+      "ce-plan SKILL.md must include a final pre-response checklist before the completion check.",
+    ).toBeGreaterThan(-1)
+    expect(
+      completionStart,
+      "ce-plan SKILL.md must keep the existing Completion check anchor.",
+    ).toBeGreaterThan(-1)
+    expect(
+      checklistStart,
+      "Final pre-response checklist should appear immediately before the terminal completion check.",
+    ).toBeLessThan(completionStart)
+
+    const finalGuard = SKILL_BODY.slice(checklistStart, SKILL_BODY.indexOf("**Pipeline mode exception:**"))
+    for (const expected of [
+      "Plan file exists on disk",
+      "Headless review state or documented skip state was summarized above the menu",
+      "Phase 5.4 menu was presented for software implementation-plan runs, even if the user only asked to create the plan or run doc review, unless pipeline mode returned control to the caller",
+      "If the user selected an action, the selected routing was executed",
+      'Incorrect final response: "Created the plan and ran doc review."',
+      'Correct terminal handoff: "Created the plan and ran doc review. Plan ready at `<absolute path to plan>`. What would you like to do next?"',
+    ]) {
+      expect(
+        finalGuard.includes(expected),
+        `Final completion guard is missing expected text: ${expected}`,
+      ).toBe(true)
+    }
+  })
+
   test("inline-routing regex rejects empty-action bullets even when followed by another bullet", () => {
     // Regression guard for Codex P2 finding on PR #715: the previous
     // `\s*(?:...)\s*` shape allowed newline consumption, so a bullet with no

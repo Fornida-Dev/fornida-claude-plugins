@@ -21,6 +21,7 @@ The point is not ceremony. The point is leverage. A good brainstorm makes the pl
 
 **Learn more**
 
+- [Skill documentation catalog](docs/skills/README.md)
 - [Compound engineering: how Every codes with agents](https://every.to/chain-of-thought/compound-engineering-how-every-codes-with-agents)
 - [The story behind compounding engineering](https://every.to/source-code/my-ai-had-already-fixed-the-code-before-i-saw-it)
 
@@ -30,12 +31,12 @@ The core loop is six steps: **brainstorm** the requirements, **plan** the implem
 
 | Skill | Purpose |
 |-------|---------|
-| `/ce-brainstorm` | Interactive Q&A to think through a feature or problem and write a requirements-only unified plan before planning |
-| `/ce-plan` | Enrich feature ideas or requirements-only plans into implementation-ready plans |
-| `/ce-work` | Execute implementation-ready plans with worktrees and task tracking |
-| `/ce-simplify-code` | Refine the freshly written code for clarity and reuse before review |
-| `/ce-code-review` | Multi-agent review against the plan before merging |
-| `/ce-compound` | Capture the learning into `docs/solutions/` so the next loop starts smarter |
+| [`/ce-brainstorm`](docs/skills/ce-brainstorm.md) | Interactive Q&A to think through a feature or problem and write a requirements-only unified plan before planning |
+| [`/ce-plan`](docs/skills/ce-plan.md) | Enrich feature ideas or requirements-only plans into implementation-ready plans |
+| [`/ce-work`](docs/skills/ce-work.md) | Execute implementation-ready plans with worktrees and task tracking |
+| [`/ce-simplify-code`](docs/skills/ce-simplify-code.md) | Refine the freshly written code for clarity and reuse before review |
+| [`/ce-code-review`](docs/skills/ce-code-review.md) | Multi-agent review against the plan before merging |
+| [`/ce-compound`](docs/skills/ce-compound.md) | Capture the learning into `docs/solutions/` so the next loop starts smarter |
 
 Each cycle compounds: `/ce-compound` writes learnings that the next `/ce-brainstorm` and `/ce-plan` read as grounding -- brainstorms sharpen plans, plans inform future plans, reviews catch more issues, patterns get documented. That return arrow is the whole point.
 
@@ -45,10 +46,12 @@ These sit around the loop or get reached for on demand -- not every cycle needs 
 
 | Skill | When to reach for it |
 |-------|---------|
-| `/ce-ideate` | *Before the loop*, when you don't yet know what to build -- generates and critically ranks grounded ideas, then routes the strongest one into `/ce-brainstorm` |
-| `/ce-strategy` | *Upstream anchor* -- creates and maintains `STRATEGY.md`, read as grounding by ideate, brainstorm, and plan so strategy choices flow into every feature |
-| `/ce-product-pulse` | *Outer loop* -- a time-windowed report on what users actually experienced (usage, performance, errors), saved to `docs/pulse-reports/`; its follow-ups feed back into ideation and brainstorming |
-| `/ce-debug` | *Instead of brainstorm -> plan -> work* when the input is a bug rather than a feature -- reproduce, trace the causal chain to root cause, then fix |
+| [`/ce-ideate`](docs/skills/ce-ideate.md) | *Before the loop*, when you don't yet know what to build -- generates and critically ranks grounded ideas, then routes the strongest one into `/ce-brainstorm` |
+| [`/ce-strategy`](docs/skills/ce-strategy.md) | *Upstream anchor* -- creates and maintains `STRATEGY.md`, read as grounding by ideate, brainstorm, and plan so strategy choices flow into every feature |
+| [`/ce-product-pulse`](docs/skills/ce-product-pulse.md) | *Outer loop* -- a time-windowed report on what users actually experienced (usage, performance, errors), saved to `docs/pulse-reports/`; its follow-ups feed back into ideation and brainstorming |
+| [`/ce-debug`](docs/skills/ce-debug.md) | *Instead of brainstorm -> plan -> work* when the input is a bug rather than a feature -- reproduce, trace root cause, fix, then polish/review before PR handoff when warranted |
+| [`/ce-pov`](docs/skills/ce-pov.md) | *On demand, before you commit* -- a decisive, project-grounded verdict on whether to adopt, switch to, or revisit an external technology, library, pattern, or platform; works cold or mid-session, and proposes the next step (`/ce-plan`, `/ce-brainstorm`, or a spike) from the verdict |
+| [`/ce-explain`](docs/skills/ce-explain.md) | *On demand, to keep learning* -- turns a concept, a diff, an idea, or "what did I do this week?" into a dense, visual explainer written for you personally, with an optional check-in (predict-then-reveal for diffs, corrected exercises) that makes it stick |
 
 For the full catalog and how each skill chains together, see [docs/skills](docs/skills/README.md). The complete inventory is [below](#full-skill-inventory).
 
@@ -105,38 +108,41 @@ The first pass tightens recent branch changes before review. The targeted pass i
 
 After installing, run `/ce-setup` in any project. It checks repo-local config, reports optional tool capabilities, and helps keep machine-local CE settings safely gitignored.
 
-The `compound-engineering` plugin currently ships 26 skills and 0 standalone agents. Specialist review, research, and workflow behavior lives inside the owning skills as skill-local prompt assets.
+The `compound-engineering` plugin currently ships 29 skills and 0 standalone agents. Specialist review, research, and workflow behavior lives inside the owning skills as skill-local prompt assets.
 
 ### Full Skill Inventory
 
 | Skill | Purpose |
 |-------|---------|
-| `/ce-strategy` | Create or maintain `STRATEGY.md` |
-| `/ce-ideate` | Generate and critically evaluate grounded ideas |
-| `/ce-brainstorm` | Explore requirements and write a right-sized requirements doc |
-| `/ce-plan` | Create structured implementation plans |
-| `/ce-work` | Execute implementation plans systematically |
-| `/ce-code-review` | Review code with skill-local reviewer personas |
-| `/ce-doc-review` | Review requirements and plan documents |
-| `/ce-debug` | Reproduce failures, trace root cause, and fix bugs |
-| `/ce-compound` | Document solved problems to compound team knowledge |
-| `/ce-compound-refresh` | Refresh stale or drifting learnings |
-| `/ce-optimize` | Run iterative optimization loops |
-| `/ce-product-pulse` | Generate time-windowed product pulse reports |
-| `/ce-riffrec-feedback-analysis` | Convert Riffrec recordings or notes into structured feedback |
-| `/ce-resolve-pr-feedback` | Resolve PR review feedback |
-| `/ce-commit` | Create a git commit with a clear message |
-| `/ce-commit-push-pr` | Commit, push, and open a PR |
-| `/ce-worktree` | Ensure work happens in an isolated git worktree |
-| `/ce-promote` | Draft user-facing announcement copy |
-| `/ce-test-browser` | Run browser tests on PR-affected pages |
-| `/ce-test-xcode` | Build and test iOS apps on simulator |
-| `/ce-setup` | Diagnose optional tool capabilities and project config |
-| `/ce-simplify-code` | Simplify recent code changes |
-| `/ce-polish` | Start a dev server and iterate on UX polish |
-| `/ce-proof` | Create, edit, and share Proof documents |
-| `/ce-dogfood-beta` | Diff-scoped browser QA of the active branch |
-| `/lfg` | Full autonomous engineering workflow |
+| [`/ce-strategy`](docs/skills/ce-strategy.md) | Create or maintain `STRATEGY.md` |
+| [`/ce-ideate`](docs/skills/ce-ideate.md) | Generate and critically evaluate grounded ideas |
+| [`/ce-pov`](docs/skills/ce-pov.md) | Form a decisive, project-grounded verdict on an external input |
+| [`/ce-explain`](docs/skills/ce-explain.md) | Explain a concept, diff, idea, or window of your own work as a personal learning artifact |
+| [`/ce-brainstorm`](docs/skills/ce-brainstorm.md) | Explore requirements and write a right-sized requirements doc |
+| [`/ce-plan`](docs/skills/ce-plan.md) | Create structured implementation plans |
+| [`/ce-work`](docs/skills/ce-work.md) | Execute implementation plans systematically |
+| [`/ce-code-review`](docs/skills/ce-code-review.md) | Review code with skill-local reviewer personas |
+| [`/ce-doc-review`](docs/skills/ce-doc-review.md) | Review requirements and plan documents |
+| [`/ce-debug`](docs/skills/ce-debug.md) | Reproduce failures, trace root cause, fix bugs, and prepare non-trivial fixes for PR |
+| [`/ce-compound`](docs/skills/ce-compound.md) | Document solved problems to compound team knowledge |
+| [`/ce-compound-refresh`](docs/skills/ce-compound-refresh.md) | Refresh stale or drifting learnings |
+| [`/ce-optimize`](docs/skills/ce-optimize.md) | Run iterative optimization loops |
+| [`/ce-product-pulse`](docs/skills/ce-product-pulse.md) | Generate time-windowed product pulse reports |
+| [`/ce-riffrec-feedback-analysis`](docs/skills/ce-riffrec-feedback-analysis.md) | Convert Riffrec recordings or notes into structured feedback |
+| [`/ce-sweep`](docs/skills/ce-sweep.md) | Sweep feedback sources, track item lifecycles, and emit an `/lfg`-ready plan |
+| [`/ce-resolve-pr-feedback`](docs/skills/ce-resolve-pr-feedback.md) | Resolve PR review feedback |
+| [`/ce-commit`](docs/skills/ce-commit.md) | Create a git commit with a clear message |
+| [`/ce-commit-push-pr`](docs/skills/ce-commit-push-pr.md) | Commit, push, and open a PR with related work references preserved |
+| [`/ce-worktree`](docs/skills/ce-worktree.md) | Ensure work happens in an isolated git worktree |
+| [`/ce-promote`](docs/skills/ce-promote.md) | Draft user-facing announcement copy |
+| [`/ce-test-browser`](docs/skills/ce-test-browser.md) | Run browser tests on PR-affected pages |
+| [`/ce-test-xcode`](docs/skills/ce-test-xcode.md) | Build and test iOS apps on simulator |
+| [`/ce-setup`](docs/skills/ce-setup.md) | Diagnose optional tool capabilities and project config |
+| [`/ce-simplify-code`](docs/skills/ce-simplify-code.md) | Simplify recent code changes |
+| [`/ce-polish`](docs/skills/ce-polish.md) | Start a dev server and iterate on UX polish |
+| [`/ce-proof`](docs/skills/ce-proof.md) | Create, edit, and share Proof documents |
+| [`/ce-dogfood`](docs/skills/ce-dogfood.md) | Hands-off diff-scoped browser QA of the active branch, with autonomous fixes |
+| [`/lfg`](docs/skills/lfg.md) | Full autonomous engineering workflow |
 
 ---
 
@@ -304,14 +310,24 @@ pi install npm:pi-ask-user
 
 ### Antigravity CLI (`agy`)
 
-Google has replaced the consumer Gemini CLI with [Antigravity CLI](https://antigravity.google) (`agy`), which still runs on Gemini models. Unlike Gemini CLI, `agy` installs plugins from a **local checkout** (not a repository URL), so clone this repository and install the bundled `.agy` plugin directory:
+Google has replaced the consumer Gemini CLI with [Antigravity CLI](https://antigravity.google) (`agy`), which still runs on Gemini models. Install Compound Engineering directly from GitHub — no clone step required:
+
+```bash
+agy plugin install https://github.com/EveryInc/compound-engineering-plugin
+```
+
+Verify with `agy plugin list`. The repository root is the plugin package (`plugin.json` plus `skills/`).
+
+For a local checkout or pinned release:
 
 ```bash
 git clone https://github.com/EveryInc/compound-engineering-plugin
-agy plugin install ./compound-engineering-plugin/.agy
+agy plugin install ./compound-engineering-plugin
 ```
 
-`agy` also loads `GEMINI.md` workspace context from the checkout.
+The bundled `.agy/` directory remains a compatibility entry point (`agy plugin install ./compound-engineering-plugin/.agy`). `agy` also loads `GEMINI.md` workspace context from the checkout.
+
+See [`.agy/INSTALL.md`](.agy/INSTALL.md) for pinning, local development, uninstall, and legacy Gemini import.
 
 ### Existing Installs
 
@@ -420,10 +436,17 @@ pi -e "$PWD"
 **Antigravity CLI (`agy`)**
 
 ```bash
+agy plugin install "$PWD"
+agy plugin validate "$PWD"
+```
+
+Or install the bundled `.agy/` entry point:
+
+```bash
 agy plugin install "$PWD/.agy"
 ```
 
-`agy` installs the bundled `.agy` plugin directory from your checkout and loads `GEMINI.md` workspace context.
+See [`.agy/INSTALL.md`](.agy/INSTALL.md) for remote install and pinning examples.
 
 ## Limitations
 
@@ -439,7 +462,7 @@ No. Bun is only needed for repo development tasks and converter maintenance.
 
 ### Where do I see all available skills?
 
-The skill inventory is in this README. Each skill's authoritative runtime spec lives in `skills/<skill>/SKILL.md`.
+The skill inventory is in this README, and the deeper skill catalog is in [`docs/skills/README.md`](docs/skills/README.md). Each skill's authoritative runtime spec lives in `skills/<skill>/SKILL.md`.
 
 ### Where is release history?
 

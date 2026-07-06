@@ -109,7 +109,7 @@ Routing rules:
 
 ## Reviewers
 
-14 reviewer personas in layered conditionals, plus CE local prompt assets. Quick roster with one-line triggers below; the persona catalog included at the bottom has the full per-persona selection criteria and spawn gates. Each selected reviewer is a generic subagent seeded with a local prompt file from `references/personas/`; do not dispatch standalone agents by type/name.
+13 reviewer personas in layered conditionals, plus CE local prompt assets. Quick roster with one-line triggers below; the persona catalog in `references/persona-catalog.md` (read it at Stage 3) has the full per-persona selection criteria and spawn gates. Each selected reviewer is a generic subagent seeded with a local prompt file from `references/personas/`; do not dispatch standalone agents by type/name.
 
 **Always-on (full review):** local prompt assets `correctness-reviewer`, `testing-reviewer`, `maintainability-reviewer`, `project-standards-reviewer`, plus CE local prompt assets `agent-native-reviewer` and `learnings-researcher`. (Stage 3c may reduce this set to a lite roster for trivial, low-risk diffs.)
 
@@ -356,9 +356,24 @@ Locate the plan document so Stage 6 can verify requirements completeness. Check 
 
 If a plan is found, classify readiness before extraction (see "Plan Requirements Completeness" above): for a unified plan read the metadata/header first, and treat a requirements-only artifact as product intent only — it must not drive implementation-unit completeness findings. Then read its **Requirements** in this order — unified `Product Contract` -> `### Requirements`, then legacy top-level `## Requirements`, then legacy `## Requirements Trace` — and the R-IDs (R1, R2, etc.) listed there, plus **Implementation Units** (current numeric subsections such as `### U1.`, `### U2.`, or `### Unit 1:` under `## Implementation Units`; legacy bullet or checkbox unit entries under that section also count). For HTML unified plans the same section names and R-/U-IDs appear as visible headings/anchors — match on the section name, ignoring HTML wrapper tags. Store the extracted requirements list and `plan_source` for Stage 6. Do not block the review if no plan is found — requirements verification is additive, not required.
 
+### Stage 2c: Resolve the shared project profile (cache)
+
+Resolve the question-agnostic project profile (stack, dependency surface + licenses, conventions, structure) from the shared cache once, so the orchestrator's reviewer selection and the non-standards reviewers (`correctness`, `testing`, `maintainability`) share one cheap stack/conventions orientation instead of each re-deriving it from the diff. Set `SKILL_DIR` to this skill's directory and run the helper (full protocol in `references/repo-profile-cache.md`):
+
+```bash
+SKILL_DIR="<absolute path of the directory containing the SKILL.md you just read>"
+python3 "$SKILL_DIR/scripts/repo-profile-cache.py" get
+```
+
+**Only resolve the cache when the working tree is the reviewed tree** — `local-aligned`, standalone, or `base:` scope (Stage 1). In `pr-remote` or `branch-remote` scope, **skip Stage 2c entirely**: the helper keys and derives from the local `HEAD`, which is *not* the reviewed ref, so its profile would describe the wrong tree (e.g. `main`'s stack while reviewing a PR that changes manifests); reviewers work from the fetched refs/diff as those modes already require.
+
+On `HIT`, load the profile JSON as the agnostic project orientation. On `MISS`, dispatch a generic subagent with `references/agents/repo-profiler.md` to derive the profile, write its JSON to a file, then persist with `python3 "$SKILL_DIR/scripts/repo-profile-cache.py" put <file>` (re-set `SKILL_DIR` in that call — shell vars don't persist between Bash invocations). On `NO-CACHE` (no git repo or no writable cache), skip the cache entirely — do not derive a profile and do not run `put`; reviewers fall back to deriving stack/conventions from the diff exactly as before. The cache is an optimization, never a correctness dependency; if anything about it fails, degrade to the no-profile path.
+
+When a profile is in hand, include a short stack/conventions orientation slice from it in the Stage 4 review context bundle passed to every reviewer **except** `project-standards` and `learnings-researcher`. This is orientation only — it never replaces a fresh read. The `project-standards-reviewer` still reads the actual root and subdirectory `AGENTS.md`/`CLAUDE.md` standards files fresh via the Stage 3b path list (the auditing exception — it audits compliance against real file contents, never against a cached digest), and `docs/solutions/` learnings stay fresh because `learnings-researcher` re-globs and reads them per run.
+
 ### Stage 3: Select reviewers
 
-Read the diff and file list from Stage 1, and the `SIGNALS` / `EXEC_LINES` from Stage 1b. The 4 always-on personas and 2 CE always-on agents are automatic. For each cross-cutting and stack-specific conditional persona in the persona catalog included below, decide whether the diff warrants it. This is agent judgment, not keyword matching — a `SIGNALS` hit (`migrations`, `frontend`, `api`, `swift-ios`) is a *prompt* to consider the matching persona, not an instruction to spawn it; confirm the runtime concern is real in the diff before adding it, and add content-gated personas (`security`, `reliability`, `adversarial`) from the diff as before since those are not path-derivable.
+Read the diff and file list from Stage 1, and the `SIGNALS` / `EXEC_LINES` from Stage 1b. The 4 always-on personas and 2 CE always-on agents are automatic. Read `references/persona-catalog.md` from this skill's directory now — it carries the full per-persona selection criteria and spawn gates the one-line roster above only summarizes. For each cross-cutting and stack-specific conditional persona in that catalog, decide whether the diff warrants it. This is agent judgment, not keyword matching — a `SIGNALS` hit (`migrations`, `frontend`, `api`, `swift-ios`) is a *prompt* to consider the matching persona, not an instruction to spawn it; confirm the runtime concern is real in the diff before adding it, and add content-gated personas (`security`, `reliability`, `adversarial`) from the diff as before since those are not path-derivable.
 
 **File-type awareness for conditional selection:** Instruction-prose files (Markdown skill definitions, JSON schemas, config files) are product code but do not benefit from runtime-focused reviewers. The adversarial reviewer's techniques (race conditions, cascade failures, abuse cases) target executable code behavior. For diffs that only change instruction-prose files, skip adversarial unless the prose describes auth, payment, or data-mutation behavior. Count only executable code lines toward line-count thresholds.
 
@@ -476,13 +491,15 @@ Omit the `mode` parameter when dispatching sub-agents so the user's configured p
 
 Apply this on **every** Agent / `spawn_agent` / subagent call in the parallel dispatch. A missed override is a silent cost-and-quality regression, so treat the internal tier list as load-bearing — moving it out of the user-facing output removed the *display*, not the discipline.
 
-**Bounded parallel dispatch.** Respect the current harness's active-subagent limit. Queue selected reviewers, dispatch only as many as the harness accepts, and fill freed slots as reviewers complete. Treat active-agent/thread/concurrency-limit spawn errors as backpressure, not reviewer failure: leave the reviewer queued and retry after a slot frees. Record a reviewer as failed only after a successful dispatch times out/fails, or when dispatch fails for a non-capacity reason.
+**Bounded parallel dispatch.** Respect the current harness's active-subagent limit without hard-coding a number. Keep the selected reviewers in a deterministic queue, dispatch up to the known/accepted capacity, and fill freed slots as reviewers complete. If the harness exposes no limit, start optimistically and learn it from the first capacity response. Treat active-agent/thread/concurrency-limit spawn errors as backpressure, not reviewer failure: leave that reviewer queued, wait for any active reviewer to finish, then retry. If no reviewer from this run has been accepted yet, do not wait on an empty active set: retry after a short bounded delay, and after repeated zero-capacity responses proceed with a user-visible degraded/no-subagent review path instead of waiting forever. Do not shrink the roster, ask the user, or record a reviewer as failed for capacity backpressure. Record a reviewer as failed only after a successful dispatch times out/fails, or when dispatch fails for a non-capacity reason.
 
-For each selected reviewer, read the corresponding local prompt asset from `references/personas/<reviewer-name>.md` and spawn a generic subagent using the subagent template included below. Do not use `subagent_type`, typed `Agent` names, or platform-level CE agent registration. Each persona subagent receives:
+Before assembling any spawn prompt, read these three files from this skill's directory now — they define the dispatch shape and the JSON contract every subagent needs, and you cannot construct a valid spawn without them: `references/subagent-template.md`, `references/diff-scope.md`, and `references/findings-schema.json`.
+
+For each selected reviewer, read the corresponding local prompt asset from `references/personas/<reviewer-name>.md` and spawn a generic subagent using the subagent template. Do not use `subagent_type`, typed `Agent` names, or platform-level CE agent registration. Each persona subagent receives:
 
 1. Their persona file content (identity, failure modes, calibration, suppress conditions)
-2. Shared diff-scope rules from the diff-scope reference included below
-3. The JSON output contract from the findings schema included below
+2. Shared diff-scope rules from `references/diff-scope.md`
+3. The JSON output contract from `references/findings-schema.json`
 4. PR metadata: title, body, and URL when reviewing a PR (empty string otherwise). Passed in a `<pr-context>` block so reviewers can verify code against stated intent
 5. Review context: intent summary, file list, diff, scope mode (`local-aligned` | `pr-remote` | `branch-remote`), and remote head ref (`PR_HEAD_REF` or `<branch-head-ref>`) when set
 6. Run ID and reviewer name for the artifact file path
@@ -627,6 +644,12 @@ Severity, confidence, and cross-reviewer agreement tell you what to do first and
 **Scope invariant.** Apply only when the working tree *is* what was reviewed — `local-aligned` or standalone. In `pr-remote` / `branch-remote` the working tree is not the reviewed head; do not apply — report instead.
 
 **Verify, then keep.** After applying, run the affected tests and lint (targeted by default; broaden when fixes span files). If they fail, revert that fix and report it as a finding instead — an unverified fix is not finished. Never leave the tree red.
+
+**Review the autofix diff before finishing.** Before committing or reporting applied fixes, diff only the changes introduced during Stage 5c against the pre-apply checkpoint. Run one self-review pass over that diff:
+- If the same helper, policy, or guard was added to multiple parallel surfaces, extract it or explain in the Applied section why duplication is intentional.
+- If an exported/shared function now accepts a broader input shape, update the nearby docs, types, or tests that define the contract so future callers understand it.
+- If a reviewer item is pure information (no defect, no code contract change, no test gap), classify it as advisory/non-actionable in Coverage or residual risks; do not patch it or describe it as a missed defect.
+If this self-review changes files, rerun the affected tests or lint for those follow-up edits before committing or reporting; the earlier validation only covers the original autofix diff.
 
 **Commit when the pre-review tree was clean.** Before applying, note whether the working tree already had uncommitted changes (`git status --porcelain`). The permanence gate is the **push**, not the commit — a local commit is private and reversible (`git reset --soft HEAD~1`).
 
@@ -794,28 +817,19 @@ If the platform doesn't support parallel sub-agents, run reviewers sequentially.
 
 ---
 
-## Included References
+## References
 
-The files below are inlined at load time. Two references are **not** inlined and are loaded on demand: Stage 6 loads `references/review-output-template.md`, and Stage 4 loads `references/cross-model-review.md` (only when the cross-model adversarial pass runs).
+Every reference lives in this skill's directory and loads **on demand at the stage that needs it** — none is `@`-inlined, because all of them are late-sequence and inlining would carry their full weight through the orchestrator's many early-stage turns and subagent dispatches. Each stage below already names the file to read; this is the maintainer index. Do not reintroduce `@` includes here.
+
+| Reference | Load at | Purpose |
+|-----------|---------|---------|
+| `references/repo-profile-cache.md` | Stage 2c | Shared repo-profile cache protocol |
+| `references/persona-catalog.md` | Stage 3 | Full per-persona selection criteria and spawn gates |
+| `references/subagent-template.md` | Stage 4 | Dispatch shape for every persona subagent |
+| `references/diff-scope.md` | Stage 4 | Shared diff-scope rules passed to each subagent |
+| `references/findings-schema.json` | Stage 4 | JSON output contract passed to each subagent |
+| `references/cross-model-review.md` | Stage 4 (only when the cross-model adversarial pass runs) | Host self-identification + peer-CLI shell-out |
+| `references/action-class-rubric.md` | Action Routing (as needed) | Persona guidance for `autofix_class` |
+| `references/review-output-template.md` | Stage 6 | Canonical section skeleton for the report |
 
 Selected reviewer prompt assets live under `references/personas/`. Read only the prompt files selected for the current review.
-
-### Persona Catalog
-
-@./references/persona-catalog.md
-
-### Subagent Template
-
-@./references/subagent-template.md
-
-### Diff Scope Rules
-
-@./references/diff-scope.md
-
-### Action class rubric
-
-@./references/action-class-rubric.md
-
-### Findings Schema
-
-@./references/findings-schema.json

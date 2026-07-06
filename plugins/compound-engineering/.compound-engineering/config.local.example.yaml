@@ -29,3 +29,51 @@
 # pulse_metric_sources: "retention_d7=posthog,nps=delighted"  # strategy-metric -> source overrides; comma-separated 'metric=source' pairs; unlisted metrics fall back to pulse_analytics_source
 # pulse_pending_metrics: "retention_d7,nps"             # comma-separated strategy metrics awaiting instrumentation; render as 'no data'
 # pulse_excluded_metrics: "north_star"                  # comma-separated strategy metrics intentionally not in pulse
+
+# --- Output format ---
+# Per-skill output format default. Selects the exclusive format the artifact
+# is written in: `md` produces a markdown file, `html` produces a single
+# self-contained HTML file. The two are mutually exclusive -- there is no
+# sibling artifact. See DESIGN.md or your agent instructions to influence
+# HTML styling. Precedence: a format request in your prompt for that run wins
+# (e.g. "output:html" or "make it HTML"); a preference you established earlier
+# (in-session, saved to memory, or in your agent instructions) overrides these
+# keys (this config is the persisted fallback); pipeline contexts (e.g., LFG,
+# disable-model-invocation) always force `md`.
+
+# plan_output: html              # md | html (default: md)
+# brainstorm_output: html        # md | html (default: md)
+# ideate_output: md              # md | html (default: html -- ideation docs are human-facing, so HTML is the default; set md to opt out)
+
+# --- ce-plan scoping confirmation ---
+# By default /ce-plan pauses before research/plan-write to show a scoping
+# summary and wait for you to confirm scope. Set this to skip that wait: ce-plan
+# composes the summary for itself, records any inferred scope under an
+# Assumptions section, announces that it's proceeding, and keeps going. It skips
+# only that confirmation -- genuine blocking questions and the post-plan menu
+# still appear. Override per run with `confirm:auto` (skip) or `confirm:ask`
+# (force the gate on for one run).
+
+# plan_skip_scoping_confirm: true   # true | false (default: false)
+
+# --- ce-promote ---
+# Written automatically when you decline the Spiral setup offer in /ce-promote.
+# Suppresses that one-time setup nudge in this project. Remove the key to re-enable.
+
+# ce_promote_spiral_optout: true   # true | (absent) (default: absent -- offer once)
+
+# --- Sweep (ce-sweep) ---
+
+# Feedback sources swept by /ce-sweep. Generic key: other skills may read this list.
+# Each entry: type (slack | github-issues | email), id (short name), target (channel ID /
+# owner/repo / mailbox), ack_action, closeout_action, sensitive (true withholds content
+# from committed state/plan text), approved (standing approval for source-side writes).
+# feedback_sources:
+#   - { type: slack, id: slack-alpha, target: C0XXXXXXX, ack_action: eyes, closeout_action: white_check_mark, sensitive: false, approved: true }
+#   - { type: github-issues, id: gh-issues, target: owner/repo, ack_action: "feedback:ack", closeout_action: "feedback:resolved", sensitive: false, approved: true }
+
+# Sweep-owned settings.
+# sweep_state_path: docs/feedback-sweep/state.yml   # committed (multi-agent) or /tmp path (solo)
+# sweep_ack_cap: 25                                 # max acks per source per run before the circuit breaker
+# sweep_lease_ttl_minutes: 60                       # single-writer lease staleness threshold
+# sweep_shared_branch: false                        # true: push-gated lease for shared-docs-branch topology
