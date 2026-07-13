@@ -8,9 +8,7 @@ argument-hint: "[a concept, a diff ref, an idea, or 'what happened this week?'] 
 
 Teach the user one thing well: a concept, a change, an idea, or a window of their own recent work. Agent-driven development removed the learning that writing code by hand used to provide; this skill is the replacement — the human keeps learning while agents do the writing.
 
-<explain_request> #$ARGUMENTS </explain_request>
-
-*(If `$ARGUMENTS` above appears as a literal token rather than the user's words — it was not substituted on this host — use the user's actual request from the conversation as the input.)*
+What to explain is the input this skill was invoked with, present in the current prompt or conversation (whether the user asked directly or a calling skill passed it).
 
 **Note: The current year is 2026.** Use this when weighting external sources and dating artifacts.
 
@@ -52,7 +50,7 @@ echo "$RUN_DIR"
 **Repo-touching inputs** (a concept with footprint in this repo, a diff, a recap): resolve the question-agnostic project profile from the shared cache instead of re-deriving it. Set `SKILL_DIR` to this skill's directory and run the helper (full protocol in `references/repo-profile-cache.md`):
 
 ```bash
-SKILL_DIR="<absolute path of the directory containing the SKILL.md you just read>"
+SKILL_DIR="<absolute path of the directory containing the SKILL.md you just read>";
 python3 "$SKILL_DIR/scripts/repo-profile-cache.py" get
 ```
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-01T19:14:58.808Z",
+  "generatedAt": "2026-07-07T17:36:42.694Z",
   "version": 2,
   "skills": {
     "ai-gateway": {
@@ -883,7 +883,15 @@
           "isr read units",
           "isr write units",
           "stale content",
-          "x-vercel-cache"
+          "x-vercel-cache",
+          "cache reason",
+          "cacheReason",
+          "x-vercel-cache-reason",
+          "stale_time",
+          "stale_tag",
+          "stale_error",
+          "draft_mode",
+          "prerender_bypass"
         ],
         "allOf": [
           [
@@ -897,15 +905,57 @@
           [
             "revalidation",
             "count"
+          ],
+          [
+            "cache",
+            "reason"
+          ],
+          [
+            "why",
+            "stale"
+          ],
+          [
+            "why",
+            "bypass"
+          ],
+          [
+            "cache",
+            "miss"
           ]
         ],
         "anyOf": [
           "revalidate",
           "prerender",
-          "invalidate"
+          "invalidate",
+          "draft mode",
+          "crawler",
+          "cold cache",
+          "request collapsed"
         ],
         "noneOf": [],
         "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "cache reason",
+          "cache hit rate",
+          "stale content"
+        ],
+        "intents": [
+          "why is my page stale",
+          "why is this request a bypass",
+          "why was this a cache miss"
+        ],
+        "entities": [
+          "cacheReason",
+          "collapsed",
+          "draft_mode",
+          "prerender_bypass",
+          "stale_time",
+          "stale_tag",
+          "stale_error"
+        ],
+        "examples": []
       }
     },
     "chat-sdk": {
@@ -1298,7 +1348,9 @@
       "summary": "Eve framework guidance for durable agents, agent applications, project architecture, runtime capabilities, channels, and frontend clients.",
       "docs": [
         "https://eve.dev/docs",
-        "https://github.com/vercel/eve"
+        "https://github.com/vercel/eve",
+        "https://vercel.com/changelog/agent-runs-vercel-mcp-cli",
+        "https://vercel.com/docs/agent-resources/vercel-mcp/tools"
       ],
       "pathPatterns": [
         ".eve/**",
@@ -1308,6 +1360,7 @@
         "\\bnpx\\s+eve(?:@latest)?\\b",
         "\\bbunx\\s+eve(?:@latest)?\\b",
         "\\beve\\s+(init|dev|build|start|info|channels|evals?)\\b",
+        "\\b(?:vercel|vc)\\s+agent-runs\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
@@ -1325,6 +1378,7 @@
         "\\bnpx\\s+eve(?:@latest)?\\b",
         "\\bbunx\\s+eve(?:@latest)?\\b",
         "\\beve\\s+(init|dev|build|start|info|channels|evals?)\\b",
+        "\\b(?:vercel|vc)\\s+agent-runs\\b",
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*\\beve(?:@[^\\s]+)?\\b",
@@ -1368,7 +1422,14 @@
           "set up an agent",
           "setup an agent",
           "agent framework",
-          "agent architecture"
+          "agent architecture",
+          "agent runs observability",
+          "latest production agent runs",
+          "vercel agent-runs",
+          "agent run trace",
+          "agent runs trace",
+          "vercel mcp agent runs",
+          "update skills based on recent runs"
         ],
         "allOf": [
           [
@@ -1412,7 +1473,11 @@
           "subagents",
           "schedules",
           "evals",
-          "frontend client"
+          "frontend client",
+          "agent runs observability",
+          "vercel agent-runs",
+          "agent run trace",
+          "agent runs trace"
         ],
         "noneOf": [
           "eve online",
@@ -1427,7 +1492,9 @@
           "eve framework",
           "durable agent framework",
           "filesystem-first agent framework",
-          "eve agent application"
+          "eve agent application",
+          "agent runs observability",
+          "vercel agent-runs"
         ],
         "intents": [
           "build or design a durable AI agent",
@@ -1435,7 +1502,9 @@
           "scaffold an agent with tools skills and persistent sessions",
           "add channels schedules sandboxes or subagents to an eve project",
           "connect an eve agent to a browser frontend",
-          "debug eve project discovery or runtime behavior"
+          "debug eve project discovery or runtime behavior",
+          "inspect eve Agent Runs through Vercel MCP or CLI",
+          "fetch an eve agent run trace with tool calls and token usage"
         ],
         "entities": [
           "eve",
@@ -1443,14 +1512,19 @@
           "defineAgent",
           "useEveAgent",
           "node_modules/eve/docs",
-          ".eve"
+          ".eve",
+          "Agent Runs",
+          "Vercel MCP Agent Runs",
+          "vercel agent-runs"
         ],
         "examples": [
           "build me an agent that persists sessions and runs scheduled jobs",
           "help me choose an agent framework for a new application",
           "scaffold an eve project with a browser UI",
           "add a Slack channel and subagent to my eve agent",
-          "why did eve not discover my tool"
+          "why did eve not discover my tool",
+          "show me the latest production Agent Runs for my project",
+          "update skills based on recent runs"
         ]
       }
     },

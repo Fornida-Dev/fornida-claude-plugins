@@ -108,7 +108,7 @@ The first pass tightens recent branch changes before review. The targeted pass i
 
 After installing, run `/ce-setup` in any project. It checks repo-local config, reports optional tool capabilities, and helps keep machine-local CE settings safely gitignored.
 
-The `compound-engineering` plugin currently ships 29 skills and 0 standalone agents. Specialist review, research, and workflow behavior lives inside the owning skills as skill-local prompt assets.
+The `compound-engineering` plugin currently ships 30 skills and 0 standalone agents. Specialist review, research, and workflow behavior lives inside the owning skills as skill-local prompt assets.
 
 ### Full Skill Inventory
 
@@ -132,7 +132,8 @@ The `compound-engineering` plugin currently ships 29 skills and 0 standalone age
 | [`/ce-sweep`](docs/skills/ce-sweep.md) | Sweep feedback sources, track item lifecycles, and emit an `/lfg`-ready plan |
 | [`/ce-resolve-pr-feedback`](docs/skills/ce-resolve-pr-feedback.md) | Resolve PR review feedback |
 | [`/ce-commit`](docs/skills/ce-commit.md) | Create a git commit with a clear message |
-| [`/ce-commit-push-pr`](docs/skills/ce-commit-push-pr.md) | Commit, push, and open a PR with related work references preserved |
+| [`/ce-commit-push-pr`](docs/skills/ce-commit-push-pr.md) | Commit, push, and open a PR that teaches any concept the change newly introduces |
+| [`/ce-babysit-pr`](docs/skills/ce-babysit-pr.md) | Watch an open PR and keep it moving toward merge, reacting to review comments and CI as they arrive |
 | [`/ce-worktree`](docs/skills/ce-worktree.md) | Ensure work happens in an isolated git worktree |
 | [`/ce-promote`](docs/skills/ce-promote.md) | Draft user-facing announcement copy |
 | [`/ce-test-browser`](docs/skills/ce-test-browser.md) | Run browser tests on PR-affected pages |
@@ -215,6 +216,28 @@ CODEX_HOME="$HOME/.codex/profiles/work" codex plugin add compound-engineering@co
 
 The marketplace step only makes the plugin available; the plugin install is what activates the native CE skills for that profile.
 
+#### Remove the legacy Codex tool map (pre-native installs)
+
+If you previously installed Compound Engineering with the Bun `convert` / `install --to codex` CLI (before native Codex plugin support), that path may have inserted a managed block into your **global** Codex instructions file:
+
+`<!-- BEGIN COMPOUND CODEX TOOL MAP -->` … `<!-- END COMPOUND CODEX TOOL MAP -->`
+
+in `$CODEX_HOME/AGENTS.md` (default `~/.codex/AGENTS.md`). That Claude-compat tool map is obsolete — CE skills name Codex tools inline — and one of its lines incorrectly told Codex to collapse subagent dispatch onto the main thread. Native plugin install does **not** add this block.
+
+Paste this into Codex (or any agent with access to your home directory) to remove it:
+
+```text
+Remove the obsolete Compound Engineering Codex tool-map block from my Codex home AGENTS.md.
+
+1. Check `$CODEX_HOME/AGENTS.md` if CODEX_HOME is set, otherwise `~/.codex/AGENTS.md`. If I use Codex profiles, also check `~/.codex/profiles/*/AGENTS.md`.
+2. Look for the exact sentinels `<!-- BEGIN COMPOUND CODEX TOOL MAP -->` and `<!-- END COMPOUND CODEX TOOL MAP -->`.
+3. If both are present, delete only the span from the BEGIN line through the END line (inclusive), leaving any other user content untouched. Do not edit project/repo AGENTS.md unless those exact sentinels are present there.
+4. If the file is empty after the removal, delete the file.
+5. Show a short before/after summary of what you changed (or say the block was already absent). Do not add a replacement tool map.
+```
+
+Re-running the Bun convert/install CLI for Codex also strips the block if it is still present; it no longer inserts it.
+
 ### Kimi Code CLI
 
 Kimi Code CLI can install Compound Engineering directly from this repository because the repo ships a native `.kimi-plugin/plugin.json` manifest:
@@ -230,6 +253,61 @@ You can also browse it through Kimi's custom marketplace flow:
 ```
 
 After installing or updating, run `/reload` or start a new Kimi session so the plugin skills are loaded.
+
+### Cline
+
+Cline loads CE skills from on-demand `SKILL.md` directories. Enable **Settings -> Features -> Enable Skills** in the Cline extension, then link this repository's skills globally or per project:
+
+```bash
+git clone https://github.com/EveryInc/compound-engineering-plugin
+./compound-engineering-plugin/.cline/scripts/install-skills.sh --global
+```
+
+Per-project install from a checkout:
+
+```bash
+./compound-engineering-plugin/.cline/scripts/install-skills.sh --project
+```
+
+Start a new Cline task after installing or updating skills. See [`.cline/INSTALL.md`](.cline/INSTALL.md) for pinning, local development, and uninstall steps.
+
+### Grok Build CLI (`grok`)
+
+xAI's [Grok Build CLI](https://x.ai/cli) (`grok`) installs Compound Engineering directly from this repository — the repo root is a valid Grok plugin (`grok` reads the existing Claude-compatible manifests, and the repo also ships a native `.grok-plugin/plugin.json`):
+
+```bash
+grok plugin install EveryInc/compound-engineering-plugin
+```
+
+This tracks the repository; run `grok plugin update` to pull the latest. To browse it as a marketplace source instead, the repo ships a native `.grok-plugin/marketplace.json`:
+
+```bash
+grok plugin marketplace add EveryInc/compound-engineering-plugin
+grok plugin install compound-engineering
+```
+
+Both paths track the repository directly (no commit pin), so no Bun install step is needed. Add `--trust` to skip the install confirmation. `grok` stores config under `~/.grok`; start a new session after installing so the skills load.
+
+Compound Engineering is also being submitted to the official [xAI plugin marketplace](https://github.com/xai-org/plugin-marketplace); see [`docs/grok-marketplace-submission.md`](docs/grok-marketplace-submission.md) for the maintainer runbook.
+
+### Devin CLI
+
+Devin CLI can install Compound Engineering directly from GitHub because the repo ships a native `.devin-plugin/plugin.json` manifest:
+
+```bash
+devin plugins install EveryInc/compound-engineering-plugin
+```
+
+Verify the install and inspect the skills:
+
+```bash
+devin plugins list
+devin plugins info compound-engineering
+```
+
+Update to the latest version with `devin plugins update compound-engineering`. Plugins load at session start, so start a new Devin session after installing or updating for the skills to appear (as `/compound-engineering:<skill>` slash commands).
+
+A few skills declare Claude-style `allowed-tools` names that Devin does not map (for example `Bash`); those skills still work, but some of their actions ask for permission instead of running auto-approved. See [`docs/specs/devin.md`](docs/specs/devin.md) for details.
 
 ### GitHub Copilot
 
@@ -416,6 +494,22 @@ To test the local marketplace catalog instead, pass the catalog path:
 ```text
 /plugins marketplace /path/to/compound-engineering-plugin/.kimi-plugin/marketplace.json
 ```
+
+**Cline**
+
+```bash
+/path/to/compound-engineering-plugin/.cline/scripts/install-skills.sh --global
+```
+
+Enable **Settings -> Features -> Enable Skills** in the Cline extension, then start a new task.
+
+**Devin CLI**
+
+```bash
+devin plugins install /path/to/compound-engineering-plugin
+```
+
+Local installs are linked to the checkout rather than copied, so skill edits apply on the next Devin session without reinstalling.
 
 **OpenCode**
 

@@ -39,10 +39,7 @@ Parse a `mode:headless` token from anywhere in the arguments, strip it, and trea
 
 ### Phase 0: Route by Config State
 
-**Resolve the repo root.** Pre-resolved at skill load:
-!`git rev-parse --show-toplevel 2>/dev/null || true`
-
-If the line above is an absolute path, use it as `<repo-root>`. If it is empty or still shows a backtick command string (a harness that did not pre-resolve), run `git rev-parse --show-toplevel` with the shell tool. Read `<repo-root>/.compound-engineering/config.local.yaml` with the native file-read tool.
+**Resolve the repo root.** Run `git rev-parse --show-toplevel` with the shell tool to resolve `<repo-root>`. Read `<repo-root>/.compound-engineering/config.local.yaml` with the native file-read tool.
 
 **Route:**
 - Config file missing, or it has no `feedback_sources` key -> first run -> Phase 1.
@@ -70,7 +67,7 @@ Resolve once and reuse for the entire run:
 **Every Bash call that runs the bundled engine sets `SKILL_DIR` inline** (shell state does not persist between calls):
 
 ```bash
-SKILL_DIR="<absolute path of the directory containing the SKILL.md you just read>"
+SKILL_DIR="<absolute path of the directory containing the SKILL.md you just read>";
 python3 "$SKILL_DIR/scripts/sweep-state.py" <subcommand> --state <state> ...
 ```
 
