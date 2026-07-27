@@ -5,44 +5,30 @@ via Claude Org Settings > Plugins (GitHub sync). Plugins are vendored (copied in
 and pinned to upstream commit SHAs for auditability - see VENDOR.md.
 
 ## Update a vendored plugin
-1. `.\setup-fornida-plugins.ps1` — re-pins each plugin to its latest upstream SHA, vendors
-   the tree, updates VENDOR.md, then **automatically runs `apply-overlays.ps1` +
-   `verify-overlays.ps1`** so Fornida overlays can never be silently dropped. Use
-   `-Plugin <name>` to update just one (e.g. `-Plugin caveman`).
-2. `claude plugin validate .`  (optional but recommended).
-3. The script **commits to the current branch and stops — it does NOT push** (org rule:
-   no deploy without explicit human approval). Open a PR; merging to `main` republishes
-   to the fleet if "Sync automatically" is on.
+Manual, on demand (no scheduled automation).
 
-> The script aborts (non-zero) before committing if `verify-overlays.ps1` fails — e.g.
-> caveman's forced output style went missing or its Node hooks came back.
+1. `.\setup-fornida-plugins.ps1` — re-pins each plugin to its latest upstream SHA and
+   vendors the tree **RAW** (no overlays), updating VENDOR.md. `-Plugin <name>` updates one.
+   `tar --exclude` drops content the **claude.ai-hosted** validator rejects: foreign-tool
+   mirror dirs, `tests/` (nested plugin.json), top-level `bin/`, and nested `upstream/`
+   skill copies.
+2. `claude plugin validate .` (optional). Note it does **not** catch the hosted-only rules
+   (nested plugin.json, `bin/`, duplicate skills) — the excludes handle those.
+3. The script commits to the current branch and stops — it does **not** push (org rule: no
+   deploy without explicit approval). Push to `main`, then click **Re-sync** in Claude Org
+   Settings → Plugins to republish to the fleet.
 
-**Windows note:** compound-engineering's tarball contains symlinked mirror dirs that
-Windows `tar.exe` cannot extract; updating CE on Windows needs a git-based fetch (see
-VENDOR.md "Known limitation"). caveman extracts cleanly on every platform. The scheduled
-automation (below) runs on a Linux runner, so CI sidesteps this entirely — CI is the
-canonical update path.
+> **superclaude is `skip`-flagged** in the script. Its upstream `plugin.json` declares
+> `"agents": "./agents/"` (a directory string) which the validator rejects
+> (`agents: Invalid input`), breaking the whole marketplace sync — so RAW auto-re-vendor is
+> harmful. Update it manually with `-Plugin superclaude`, then convert `agents` back to an
+> explicit file array (one `./agents/<file>.md` per entry) before committing.
 
-## Automated updates (scheduled)
-`.github/workflows/auto-revendor.yml` runs weekly (Mondays, and on-demand via
-**workflow_dispatch**) on a Linux runner. It re-vendors every plugin from latest upstream,
-re-applies + verifies overlays, validates the marketplace, and — only when something
-changed and both gates pass — **commits straight to `main` and pushes**. No PR, no click.
-
-- **Machine-gated, not human-gated.** `verify-overlays.ps1` (overlay intact) and
-  `claude plugin validate` are the only guards; either failing aborts the push. There is
-  **no human review** before publish — upstream changes go to the fleet automatically,
-  including unwanted behaviour changes the gates can't detect. Owner-accepted trade-off; to
-  re-add review, switch the final workflow step back to opening a PR.
-- No special repo setting and no third-party action required — plain `git push` under
-  `contents: write`.
-- The manual `setup-fornida-plugins.ps1` flow above still works for ad-hoc / local runs.
-
-## Overlays (Fornida edits on top of vendored plugins)
-- `overlays/` — source of truth; `apply-overlays.ps1` copies it onto `plugins/`.
-- caveman ships a forced terse output style (`caveman`) plus selectable `caveman-lite` /
-  `caveman-ultra` tiers (pick via `/output-style`), and a hook-neutralized `plugin.json`.
-  See VENDOR.md "Fornida overlays".
+## No overlays — force lives in the kit
+Plugins are vendored **RAW**; no Fornida edits here. Fornida customization — the forced
+caveman terse output style + ultra default — lives in **`fornida-project-kit`** (repo
+`fornida-claude-project_instructions`), a Required install. Keeping this repo raw means
+plugins re-vendor cleanly with nothing to clobber. See VENDOR.md.
 
 ## Add a plugin
 Add a `Vendor` line in the script and an entry in `.claude-plugin/marketplace.json`.
