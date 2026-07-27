@@ -57,15 +57,26 @@ $Plugins = @(
     @{ name = 'compound-engineering'; repo = 'EveryInc/compound-engineering-plugin'; branch = 'main'; subpath = '';
        exclude = @('.agy', '.cursor-plugin', '.codex-plugin', '.kimi-plugin', '.opencode', '.pi', '.agents', '.junie') },
     @{ name = 'caveman';              repo = 'JuliusBrussee/caveman';                branch = 'main'; subpath = '' },
-    @{ name = 'superclaude';          repo = 'SuperClaude-Org/SuperClaude_Framework'; branch = 'master'; subpath = 'plugins/superclaude' },
+    # superclaude ships `"agents": "./agents/"` (a directory string) which the Claude plugin
+    # validator REJECTS (`agents: Invalid input`) — it requires an explicit file array. RAW
+    # re-vendoring reverts the array fix every run, breaking `claude plugin validate` and the
+    # org sync (Required plugins stop distributing). skip=$true keeps it OUT of the automated
+    # re-vendor so the committed array form survives. Update it manually with
+    # `-Plugin superclaude`, then re-apply the agents array + `claude plugin validate .`.
+    @{ name = 'superclaude';          repo = 'SuperClaude-Org/SuperClaude_Framework'; branch = 'master'; subpath = 'plugins/superclaude'; skip = $true },
     @{ name = 'github';               repo = 'anthropics/claude-plugins-official';    branch = 'main'; subpath = 'external_plugins/github' },
     @{ name = 'superpowers';          repo = 'obra/superpowers';                     branch = 'main'; subpath = '' },
     @{ name = 'vercel';               repo = 'vercel/vercel-plugin';                 branch = 'main'; subpath = '' }
 )
 
 if ($Plugin) {
+    # Explicit -Plugin overrides skip: you can still manually re-vendor a skipped plugin.
     $Plugins = $Plugins | Where-Object { $_.name -eq $Plugin }
     if (-not $Plugins) { Write-Error "Unknown plugin: $Plugin"; exit 1 }
+} else {
+    # Default (automated) run: skip plugins flagged skip=$true (they need a manual step,
+    # e.g. superclaude's agents-array schema fix, that RAW re-vendoring would revert).
+    $Plugins = $Plugins | Where-Object { -not $_.skip }
 }
 
 $vendorMd = Join-Path $repoRoot 'VENDOR.md'

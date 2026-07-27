@@ -1,14 +1,14 @@
 name: auto-revendor
 
 # Keeps vendored plugins current with upstream automatically. Weekly (and on-demand) it
-# re-vendors from pinned upstream SHAs, re-applies + verifies the Fornida overlays, and —
-# when something changed AND the machine gates pass — commits straight to main and pushes.
-# No PR, no human click. The machine gates (verify-overlays + plugin validate) are the only
-# guard: a broken overlay or invalid marketplace aborts the push.
+# re-vendors RAW from pinned upstream SHAs (no overlays — Fornida force lives in the kit) and,
+# when something changed AND the manifest gate passes, commits straight to main and pushes.
+# No PR, no human click. The gate (jq well-formedness + agents-must-be-array) aborts the push
+# on a malformed or schema-invalid manifest so a broken marketplace never reaches the org sync.
 #
 # Trade-off (accepted by the repo owner): upstream changes auto-publish to the org
-# marketplace unreviewed. The gates catch overlay/validation breakage, NOT unwanted upstream
-# behaviour changes. To re-introduce human review, switch the final step back to opening a PR.
+# marketplace unreviewed. The gate catches manifest breakage, NOT unwanted upstream behaviour
+# changes. To re-introduce human review, switch the final step back to opening a PR.
 #
 # See docs/plans/2026-06-26-001-feat-fix-and-merge-plugin-updates-plan.md.
 
@@ -45,16 +45,25 @@ jobs:
 
       - name: Validate manifests
         shell: bash
-        # Hard gate: malformed JSON must not reach main. The `claude` CLI is not available on
-        # GitHub runners, so validate JSON well-formedness with jq (preinstalled on ubuntu)
-        # across the marketplace manifest and every vendored plugin.json.
+        # Hard gate: a malformed OR schema-invalid manifest must not reach main. The `claude`
+        # CLI is not on GitHub runners, so replicate the checks that matter with jq:
+        #   1. JSON well-formedness (jq empty) across marketplace + every plugin.json.
+        #   2. `agents`, when present, must be an ARRAY of paths — a directory string
+        #      (e.g. "./agents/") is what the Claude validator rejects with
+        #      `agents: Invalid input`, which breaks the org sync so Required plugins
+        #      (incl. caveman) stop distributing. This is the exact break superclaude caused.
         run: |
           set -e
           jq empty .claude-plugin/marketplace.json
           while IFS= read -r f; do
             echo "validating $f"
             jq empty "$f"
-          done < <(find plugins -name plugin.json -path '*/.claude-plugin/*')
+            atype=$(jq -r 'if has("agents") then (.agents | type) else "array" end' "$f")
+            if [ "$atype" != "array" ]; then
+              echo "ERROR: $f has \"agents\" as $atype; the plugin validator requires an array of paths." >&2
+              exit 1
+            fi
+          done < <(find plugins -maxdepth 3 -path '*/.claude-plugin/plugin.json')
 
       - name: Commit + push to main on change
         shell: bash
