@@ -54,9 +54,15 @@ $repoRoot = $PSScriptRoot
 # platform. The real Claude tree (.claude-plugin, .claude, skills, agents, commands,
 # src, assets, docs, scripts, .compound-engineering, top-level docs) is kept.
 $Plugins = @(
+    # 'tests' excluded: CE ships tests/fixtures/*/.claude-plugin/plugin.json — nested plugin
+    # manifests that the claude.ai-hosted marketplace validator rejects ("plugin.json must be
+    # at .claude-plugin/plugin.json at the plugin root; found nested"). Dev-only, not runtime.
     @{ name = 'compound-engineering'; repo = 'EveryInc/compound-engineering-plugin'; branch = 'main'; subpath = '';
-       exclude = @('.agy', '.cursor-plugin', '.codex-plugin', '.kimi-plugin', '.opencode', '.pi', '.agents', '.junie') },
-    @{ name = 'caveman';              repo = 'JuliusBrussee/caveman';                branch = 'main'; subpath = '' },
+       exclude = @('.agy', '.cursor-plugin', '.codex-plugin', '.kimi-plugin', '.opencode', '.pi', '.agents', '.junie', 'tests') },
+    # 'bin' excluded: caveman ships a top-level bin/ (install.js + lib). claude.ai-hosted
+    # plugins may not ship bin/ executables (added to PATH, invisible to admin approval).
+    # Not needed at runtime — caveman activates via output style / hooks, not bin/.
+    @{ name = 'caveman';              repo = 'JuliusBrussee/caveman';                branch = 'main'; subpath = ''; exclude = @('bin') },
     # superclaude ships `"agents": "./agents/"` (a directory string) which the Claude plugin
     # validator REJECTS (`agents: Invalid input`) — it requires an explicit file array. RAW
     # re-vendoring reverts the array fix every run, breaking `claude plugin validate` and the
@@ -66,7 +72,10 @@ $Plugins = @(
     @{ name = 'superclaude';          repo = 'SuperClaude-Org/SuperClaude_Framework'; branch = 'master'; subpath = 'plugins/superclaude'; skip = $true },
     @{ name = 'github';               repo = 'anthropics/claude-plugins-official';    branch = 'main'; subpath = 'external_plugins/github' },
     @{ name = 'superpowers';          repo = 'obra/superpowers';                     branch = 'main'; subpath = '' },
-    @{ name = 'vercel';               repo = 'vercel/vercel-plugin';                 branch = 'main'; subpath = '' }
+    # 'upstream' excluded: vercel ships skills/<name>/ AND skills/<name>/upstream/ — a nested
+    # duplicate that the hosted validator rejects ("Duplicate skill name ... in skills/<n> and
+    # skills/<n>/upstream"). Keep the primary skill dir; drop the upstream/ copy.
+    @{ name = 'vercel';               repo = 'vercel/vercel-plugin';                 branch = 'main'; subpath = ''; exclude = @('upstream') }
 )
 
 if ($Plugin) {

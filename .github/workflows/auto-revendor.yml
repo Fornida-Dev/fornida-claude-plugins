@@ -52,6 +52,11 @@ jobs:
         #      (e.g. "./agents/") is what the Claude validator rejects with
         #      `agents: Invalid input`, which breaks the org sync so Required plugins
         #      (incl. caveman) stop distributing. This is the exact break superclaude caused.
+        # Plus the claude.ai-HOSTED validator rules (stricter than local `claude plugin
+        # validate`) that also break the org sync:
+        #   3. No nested plugin.json below a plugin root (CE tests/fixtures).
+        #   4. No top-level bin/ in any plugin (caveman ships one; hosted rejects bin/).
+        #   5. No duplicate skill dir (vercel skills/<n>/upstream shadowing skills/<n>).
         run: |
           set -e
           jq empty .claude-plugin/marketplace.json
@@ -64,6 +69,25 @@ jobs:
               exit 1
             fi
           done < <(find plugins -maxdepth 3 -path '*/.claude-plugin/plugin.json')
+
+          # 3. nested plugin.json (real ones live at depth 3: plugins/<name>/.claude-plugin/plugin.json)
+          nested=$(find plugins -mindepth 4 -path '*/.claude-plugin/plugin.json' || true)
+          if [ -n "$nested" ]; then
+            echo "ERROR: nested plugin.json below plugin root (hosted validator rejects):" >&2
+            echo "$nested" >&2; exit 1
+          fi
+          # 4. top-level bin/ per plugin
+          bins=$(find plugins -mindepth 2 -maxdepth 2 -type d -name bin || true)
+          if [ -n "$bins" ]; then
+            echo "ERROR: top-level bin/ not allowed in hosted plugins:" >&2
+            echo "$bins" >&2; exit 1
+          fi
+          # 5. duplicate skill dir shadow (e.g. skills/<n>/upstream)
+          dups=$(find plugins -type d -path '*/skills/*/upstream' || true)
+          if [ -n "$dups" ]; then
+            echo "ERROR: nested duplicate skill dir (hosted validator rejects duplicate skill name):" >&2
+            echo "$dups" >&2; exit 1
+          fi
 
       - name: Commit + push to main on change
         shell: bash
