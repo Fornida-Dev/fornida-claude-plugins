@@ -1,4 +1,4 @@
-# Vercel Ecosystem — Relational Knowledge Graph (as of Mar 4, 2026)
+# Vercel Ecosystem — Relational Knowledge Graph (as of Aug 5, 2026)
 
 > This document is the master reference for understanding the entire Vercel ecosystem.
 > It maps every product, library, CLI, API, and service — how they relate, when to use each,
@@ -29,6 +29,8 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Build System (Turbopack or framework-native)
 │   ↔ Vercel CLI
 │   ↔ Vercel REST API / @vercel/sdk
+│   ⊃ Deployment Protection (Vercel Authentication, SSO, Trusted Sources)
+│   ⤳ skill: access-protected-vercel-deployment
 │   ⤳ skill: vercel-cli
 │   ⤳ skill: deployments-cicd
 │
@@ -40,6 +42,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
 │   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
+│   ⤳ skill: create-a-backend  (backend product and framework selection)
 │   ⤳ skill: vercel-functions
 │   ⤳ skill: routing-middleware
 │   ⤳ skill: runtime-cache
@@ -54,6 +57,13 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ↔ Vercel CLI (vercel env)
 │   ↔ Marketplace Integrations (auto-provisioned)
 │   ⤳ skill:bootstrap
+│
+├── Vercel Flags (feature flags & experimentation)     ⤳ skill: flags-sdk  📖 docs: https://vercel.com/docs/flags
+│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)
+│   ⊃ Flags Explorer (override flags from the Vercel Toolbar)
+│   ⊃ Precompute pattern (static A/B variants via middleware rewrites)
+│   ↔ Vercel CLI (vercel flags — create, set, enable, disable, sdk-keys)
+│   ↔ Global Config (alternative store via @flags-sdk/global-config adapter)
 │
 ├── Secure Compute (isolated infrastructure for compliance workloads)
 │   → Deployment Engine (opt-in per project)
@@ -74,7 +84,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine (preview URLs)
 │   ↔ Preview Comments (inline annotation)
 │   ↔ Vercel Analytics (performance overlay)
-│   ↔ Edge Config (feature flag toggles)
+│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: flags-sdk
 │
 ├── Vercel Templates (starter kits and example repos)
 │   → Deployment Engine (one-click deploy)
@@ -91,6 +101,14 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ↔ Edge Network (routing resolved at network layer)
 │   ↔ @vercel/microfrontends (Next.js, SvelteKit, React Router, Vite)
 │   ⤳ skill: microfrontends
+│
+├── Services (multiple components in one Vercel project)
+│   ⊃ Independently built frontends and backends
+│   ⊃ Top-level rewrites (shared public routing and domain)
+│   ⊃ Service bindings (private, deployment-aware communication)
+│   → Deployment Engine (atomic previews, deploys, and rollbacks)
+│   ↔ Vercel CLI (vercel dev runs all services locally)
+│   ⤳ skill: vercel-services  📖 docs: https://vercel.com/docs/services
 │
 └── Teams & Access Control
     ↔ Vercel REST API
@@ -232,7 +250,7 @@ AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
 │   ↔ AI Elements (render streaming responses)          │
 └── Key Patterns
     ↔ Next.js (chat apps, AI features in web apps)
-    ↔ Workflow DevKit (durable agents)
+    ↔ Workflow SDK (durable agents)
     ↔ AI Gateway (model routing, cost tracking)
     ↔ Generation Persistence (IDs, URLs, cost tracking) ⤳ skill: ai-sdk
     ↔ v0 (AI-generated UI components)
@@ -273,7 +291,7 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
     ⊃ Text, Image, Video generation
     ↔ AI SDK (unified interface)
 
-WORKFLOW DEVKIT (WDK)                      ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflow
+WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflow
 ├── Core Concepts
 │   ⊃ 'use workflow' directive
 │   ⊃ 'use step' directive
@@ -305,7 +323,15 @@ WORKFLOW DEVKIT (WDK)                      ⤳ skill: workflow  📖 docs: https
     ↔ Vercel Functions (automatic step isolation)
     ↔ Next.js (API routes as workflow endpoints)
 
-EVE (TypeScript, beta)                    ⤳ skill: eve  📖 docs: https://eve.dev/docs
+AGENT BUILDING DEFAULTS                   ⤳ skill: build-agents
+├── Default entrypoint for generic "build/create/scaffold an agent" requests
+├── New Vercel AI agents use eve by default unless the user asks otherwise
+├── Slack agents leverage the Slack Agent Skill patterns with eve + Vercel Connect
+└── Boundaries
+    → eve framework docs for implementation details
+    ↔ Vercel Connect for managed channel and API credentials
+
+eve (TypeScript, beta)                    ⤳ skill: eve  📖 docs: https://eve.dev/docs
 ├── Core
 │   ⊃ Filesystem-first framework for durable AI agents and agent-powered applications
 │   ⊃ `agent/instructions.*` (identity and standing behavior)
@@ -367,7 +393,7 @@ CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: http
 │
 ├── Key Patterns
 │   ↔ AI SDK (streaming AI responses via thread.post(textStream))
-│   ↔ Workflow DevKit (registerSingleton/reviver for durable serialization)
+│   ↔ Workflow SDK (registerSingleton/reviver for durable serialization)
 │   ↔ Vercel Functions (webhook handlers, waitUntil)
 │   ↔ Next.js (API routes for webhooks)
 │   ↔ Upstash Redis (state adapter backend)
@@ -439,12 +465,12 @@ VERCEL BLOB (active, first-party)          ⤳ skill: vercel-storage  📖 docs:
 │
 └── Use When: Media files, user uploads, large assets
 
-VERCEL EDGE CONFIG (active, first-party)   ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/storage/edge-config
+VERCEL GLOBAL CONFIG (active, first-party) ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/global-config
 ├── Purpose: Global low-latency key-value for config
-│   ⊃ Feature flags
-│   ⊃ A/B testing configuration
+│   ⇢ renamed from: Edge Config (July 2026; @vercel/global-config replaces @vercel/edge-config as drop-in)
 │   ⊃ Dynamic routing rules
-│   ⊃ @vercel/edge-config package (supports Next.js 16 cacheComponents)
+│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: flags-sdk)
+│   ⊃ @vercel/global-config package (supports Next.js 16 cacheComponents)
 │
 └── Use When: Config that must be read at the edge instantly
 
@@ -521,6 +547,12 @@ VERCEL CLI (vercel / vc)                   ⤳ skill: vercel-cli  📖 docs: htt
 │   ⊃ vercel build (local build)
 │   ⊃ vercel deploy --prebuilt (deploy build output only)
 │   ⊃ vercel promote / vercel rollback
+│
+├── Protected Deployment Access            ⤳ skill: access-protected-vercel-deployment
+│   ⊃ vercel curl (authenticated HTTP requests to preview or production)
+│   ⊃ VERCEL_OIDC_TOKEN (short-lived local development identity)
+│   ⊃ x-vercel-trusted-oidc-idp-token (browser and automation requests)
+│   ↔ Trusted Sources (caller project and environment access rules)
 │
 ├── Development
 │   ⊃ vercel dev (local dev server)
@@ -617,9 +649,9 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Image generation (image-only models) | `experimental_generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
-| New durable agent or agent-powered application | Eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
-| Add durability to an existing agent or application workflow | Workflow DevKit `DurableAgent` | Crash-safe orchestration without adopting a complete agent framework |
-| Browser UI for an Eve agent | Eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
+| New durable agent or agent-powered application | eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
+| Add durability to an existing agent or application workflow | Workflow SDK `DurableAgent` | Crash-safe orchestration without adopting a complete agent framework |
+| Browser UI for an eve agent | eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
 | Provider-specific features (e.g., computer use) | Direct provider SDK (`@ai-sdk/anthropic`) | Only when gateway doesn't expose the feature |
 | Connect to external tools | AI SDK MCP Client | Standard protocol, OAuth |
 | Agent needs live Vercel state | Vercel MCP Server | Read projects, deployments, logs via MCP |
@@ -634,7 +666,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Need                      | Use                             | Why                            |
 | ------------------------- | ------------------------------- | ------------------------------ |
 | File uploads, media       | Vercel Blob                     | First-party, up to 5TB         |
-| Feature flags, A/B config | Edge Config                     | Ultra-low latency at edge      |
+| Feature flags, A/B tests  | Vercel Flags (Flags SDK)        | First-party, CLI + Explorer    |
 | Relational database       | Neon (via Marketplace)          | Serverless Postgres, branching |
 | Key-value cache           | Upstash Redis (via Marketplace) | Serverless Redis, same billing |
 
@@ -695,7 +727,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 | ---------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **Next.js Cache** (`'use cache'`, `revalidate`, `revalidatePath/Tag`)              | Per-route or per-component, framework-managed | Time-based (`revalidate: N`), on-demand (`revalidateTag()`, `revalidatePath()`)    | Caching rendered pages, component trees, or data fetches within a Next.js app                                       | You need caching outside Next.js, or need to cache arbitrary key-value data                                             |
 | **Runtime Cache** (Vercel platform, per-region KV)                                 | Per-region key-value store, any framework     | Tag-based (`purgeByTag()`), key-based (`delete()`)                                 | Caching expensive computations, API responses, or shared data across functions — works with any framework on Vercel | You only need page-level caching (use Next.js Cache instead); you need global consistency (Runtime Cache is per-region) |
-| **CDN Cache + Purge-by-Tag** (Edge Network, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL, on-demand purge via Vercel API (`POST /v1/edge-config/purge`) | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
+| **CDN Cache + Purge-by-Tag** (Edge Network, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL, on-demand purge via `vercel cache purge --type cdn` | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
 
 > **Layering pattern**: A typical Next.js app uses all three — Next.js Cache for component/route-level freshness, Runtime Cache for shared cross-request data (e.g., product catalog), and CDN Cache for static assets and ISR pages. Each layer has its own invalidation strategy; tag-based invalidation can cascade across layers when configured.
 
@@ -745,9 +777,9 @@ Three distinct caching systems serve different purposes. They can be used indepe
 ### 3. Build a Durable AI Agent
 ```
 1. Choose the architecture boundary:
-   - New filesystem-first agent or agent-powered app → Eve
-   - Existing app/agent that needs durable orchestration → Workflow DevKit `DurableAgent`
-2. Eve path: npx eve@latest init <agent-name> → read node_modules/eve/docs/README.md
+   - New filesystem-first agent or agent-powered app → eve
+   - Existing app/agent that needs durable orchestration → Workflow SDK `DurableAgent`
+2. eve path: npx eve@latest init <agent-name> → read node_modules/eve/docs/README.md
              → author instructions, tools, skills, connections, channels, and optional frontend client
 3. Workflow path: Next.js Route Handler → DurableAgent → AI SDK tools → AI Gateway
 4. vercel link → enable AI Gateway → vercel env pull → verify sessions, streaming, retries, and approvals
@@ -758,7 +790,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 
 Next.js (App Router) → Neon Postgres (data) → Clerk (auth, via Marketplace)
 → Stripe (payments, via Marketplace) → Vercel Blob (uploads)
-→ Edge Config (feature flags) → Vercel Analytics
+→ Vercel Flags (feature flags) → Vercel Analytics
 
 ```
 
@@ -821,7 +853,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
 | `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
 | `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
-| `experimental_createWorkflow` | `createWorkflow()` (stable) | WDK API stabilized |
+| `experimental_createWorkflow` | `createWorkflow()` (stable) | Workflow SDK API stabilized |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
 | `next export` | `output: "export"` in next.config | CLI command removed |
@@ -894,8 +926,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 ### AI Stack
 
 - Default to AI SDK v6 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
-- Consider Eve when the user is creating or architecting a new durable agent or agent-powered application; propose it as a framework candidate before installing or scaffolding it.
-- Use Eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow DevKit when existing application logic primarily needs durable orchestration.
+- Consider eve when the user is creating or architecting a new durable agent or agent-powered application; propose it as a framework candidate before installing or scaffolding it.
+- Use eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow SDK when existing application logic primarily needs durable orchestration.
 - Use `@ai-sdk/react` for React hooks and keep user-facing AI experiences streaming-first.
 - Prefer `toUIMessageStreamResponse()`, `DefaultChatTransport`, and modern tool definitions (`inputSchema`, `outputSchema`) over v5-era patterns.
 - Keep AI recommendations scoped to the current task; do not force broad AI stack migrations unless the code already points there.
@@ -916,15 +948,15 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### Storage and Data
 
-- Prefer current Vercel data integrations such as Neon, Upstash, Blob, and Edge Config over sunset packages.
+- Prefer current Vercel data integrations such as Neon, Upstash, Blob, and Global Config over sunset packages.
 - Match storage advice to the active need: relational data, cache/queue-style access, blob assets, or low-latency config reads.
 - Avoid recommending data migrations unless the codebase is actually using deprecated Vercel storage packages.
 - Keep data-layer guidance practical: client choice, env setup, and runtime-fit over product catalog detail.
 
 ### Workflow and Durability
 
-- Use Workflow DevKit and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
-- Prefer Eve when those requirements are part of a new agent application that also needs a structured home for instructions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients.
+- Use Workflow SDK and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
+- Prefer eve when those requirements are part of a new agent application that also needs a structured home for instructions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients.
 - Prefer workflow steps over ad-hoc retry loops, timers, and manual state persistence in request handlers.
 - Keep workflow recommendations limited to durable execution problems; do not route ordinary request/response code into workflow patterns by default.
 - When workflow context is injected, emphasize survival of crashes, retries, and async callback orchestration.

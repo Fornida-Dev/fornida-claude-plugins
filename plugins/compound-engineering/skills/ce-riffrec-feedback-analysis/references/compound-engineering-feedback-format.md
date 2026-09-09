@@ -42,7 +42,7 @@ topic: <topic>
 ## Key Flows
 
 - F1. Recorded feedback triage
-  - **Trigger:** A Riffrec zip is available for review.
+  - **Trigger:** A Riffrec capture bundle is available for review.
   - **Actors:** A1, A2
   - **Steps:** <3-7 product steps seen in the recording>
   - **Outcome:** <What should be true after the fix>
@@ -105,7 +105,7 @@ topic: <topic>
 
 ## Next Steps
 
--> /ce-brainstorm to confirm, correct, and regroup the captured requirements before any planning.
+-> Invoke `ce-brainstorm` to confirm, correct, and regroup the captured requirements before any planning.
 ```
 
 ## Evidence Rules

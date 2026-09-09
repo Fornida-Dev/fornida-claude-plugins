@@ -1,101 +1,79 @@
 ---
 name: ce-explain
-description: "Turn a concept, a diff, an idea, or a window of your own recent work into a dense, visual explainer written for you personally — with an optional check-in (predict-then-reveal for diffs, corrected exercises) that makes the material stick. For learning, not repo docs or verdicts."
-argument-hint: "[a concept, a diff ref, an idea, or 'what happened this week?'] — or invoke bare to be asked"
+description: "Explain how something works and why it has its current shape, grounding behavior in evidence and separating documented rationale from inference. Use when understanding a system, change, idea, or recent work is needed for learning or further work, including deeper teaching explanations. Use ce-pov for a judgment or recommendation."
+argument-hint: "[question, concept, change, or work window] [intended use or reader]"
 ---
 
-# Explain It To Me
+# Explain How and Why
 
-Teach the user one thing well: a concept, a change, an idea, or a window of their own recent work. Agent-driven development removed the learning that writing code by hand used to provide; this skill is the replacement — the human keeps learning while agents do the writing.
+Produce an explanation that answers the scoped question and gives its consumer enough understanding for the intended use. The subject and purpose come from the request and available context, whether a person or another workflow supplied them. Ground project behavior in source evidence; distinguish documented rationale, inference, and unknowns.
 
-What to explain is the input this skill was invoked with, present in the current prompt or conversation (whether the user asked directly or a calling skill passed it).
+**Done:** deliver the explanation with supporting evidence and material unanswered questions, or return the specific blocker. When an artifact is requested, deliver the artifact and its location. Publication is a separate action, not a condition of having explained the subject.
 
-**Note: The current year is 2026.** Use this when weighting external sources and dating artifacts.
+## Consumer and interaction
 
-## Who the explainer is for
+Adapt depth and presentation to the intended readers and use. A person may need a working answer; a calling agent may need a teaching artifact for someone else. Do not infer the output from the caller's identity alone. When contributing to an ongoing workflow, deliver the requested result and leave continuation to its owner. Do not add destination menus or follow-up offers to that return.
 
-The user personally — dense, technical, one voice, no audience adaptation. Meeting prep preps the user; it never produces the deck. The artifact is display-only: no embedded quizzes, forms, or widgets — the doing happens in the session, where answers can be checked.
+Resolve discoverable facts before asking. Ask only when missing information materially changes the answer and cannot be resolved from the request or evidence. If interaction is unavailable, return the unresolved question and its consequence rather than waiting or inventing an answer. A result may explain verified behavior while reporting that its historical rationale is unknown.
 
-## Interaction Method
+**Read `references/orchestration.md` before grounding, the first blocking question, or subagent dispatch.** It owns evidence gathering, tool use, model tiers, and their degradation rules.
 
-When you must ask the user a question, use the platform's blocking question tool: `AskUserQuestion` in Claude Code (call `ToolSearch` with `select:AskUserQuestion` first if its schema isn't loaded), `request_user_input` in Codex, `ask_question` in Antigravity CLI (`agy`), `ask_user` in Pi (requires the `pi-ask-user` extension). Fall back to numbered options in chat only when no blocking tool exists in the harness or the call errors (e.g., Codex edit modes) — not because a schema load is required. In the fallback, stop and wait for the user's reply. Never silently skip the question. Ask one question at a time.
+## Artifact Root
 
-## Model Tiers
+An explainer lands under `<root>/explainers/` only when archived to the repo, and learnings may be read under `<root>/solutions/`. Resolve `<root>` only when you compose such a path; a scratch-only or external-concept run never composes one. Pass the resolved path to any subagent, not the config.
 
-Dispatch is tiered by task shape, never hardcoded to a model name:
+<!-- ce-docs-root:start -->
+**Resolve the CE artifact root `<root>` before composing any artifact path.**
 
-- **Extraction tier** — the work-recap scout and the repo-profiler: search-and-quote work. Use the platform's cheapest capable model when the harness exposes a known override; otherwise inherit.
-- **Ceiling tier** — the explainer composition, the check-in reasoning, and the corrections. These run in the main conversation on the orchestrator's model; nothing is dispatched for them.
-
-**Degradation rule.** When the platform's subagent primitive cannot select per-agent models, dispatch scouts on the inherited model and keep their read budgets. When the platform has no subagent primitive at all, run the scout work inline with the same budgets.
+- **Read** `docs_root` from `<repo-root>/.compound-engineering/config.yaml` only (`<repo-root>` = `git rev-parse --show-toplevel`). Do not read it from `config.local.yaml`. Unset -> `<root>` is `docs`, exactly as before.
+- **Validate** a set value: a repo-relative directory whose real, symlink-resolved path stays inside the repo and is neither the repo root nor under `.git/`. Otherwise stop with an error naming `docs_root` and the value -- never fall back to `docs`.
+- **Use** `<root>` as the sole artifact location: create it if absent, compose each path as `<root>/<subdir>` with this skill's own subdirectory, and never also read `docs`.
+<!-- ce-docs-root:end -->
 
 ## Execution Flow
 
-### Phase 1: Classify the input
+### Phase 1: Establish the question and use
 
-Read `references/intake.md` now and classify the request into one of the four input shapes — concept, diff, idea, or work-recap window. It owns the token table (`diff:`, `since:`, `output:`), the explicit-token-beats-inference rule, the concept-vs-diff tiebreak, and conflict handling. Do not improvise classification.
-
-**Bare invocation** (no input at all): ask one blocking question — "What should I explain?" — offering a shortcut option for a recap of recent work in this repo alongside free-text. Do not produce a default artifact unprompted.
+Read `references/intake.md` now. It owns subject and window resolution, existing input tokens, and delivery selection. Explain only the requested subject. A bare invocation with no recoverable subject needs clarification under the interaction rule above, not an invented topic or default artifact.
 
 ### Phase 2: Ground
 
-Match grounding to the input shape. Create the run directory first — every run gets one, before any artifact exists:
+Follow `references/orchestration.md` for the scoped evidence pass. Use existing evidence when it is adequate and current; check claims whose support is missing, disputed, or affected by source changes.
+
+Create a run directory only when an artifact or an evidence dossier needs one. Use this block before writing either; it rejects a symlink or a scratch root owned by another user:
 
 ```bash
-RUN_DIR="/tmp/compound-engineering/ce-explain/$(date +%Y%m%d)-$(openssl rand -hex 3)"
-mkdir -p "$RUN_DIR"
-echo "$RUN_DIR"
+SCRATCH_ROOT="/tmp/compound-engineering-$(id -u)";
+[ ! -L "$SCRATCH_ROOT" ] && (umask 077; mkdir -p "$SCRATCH_ROOT") 2>/dev/null && [ ! -L "$SCRATCH_ROOT" ] && [ -O "$SCRATCH_ROOT" ] && [ -w "$SCRATCH_ROOT" ] || SCRATCH_ROOT="${TMPDIR:-/tmp}/compound-engineering-$(id -u)";
+if [ -L "$SCRATCH_ROOT" ]; then echo "unsafe scratch root symlink: $SCRATCH_ROOT" >&2; exit 1; fi;
+(umask 077; mkdir -p "$SCRATCH_ROOT") || exit 1;
+if [ -L "$SCRATCH_ROOT" ] || [ ! -O "$SCRATCH_ROOT" ]; then echo "scratch root is not owned by the current user: $SCRATCH_ROOT" >&2; exit 1; fi;
+chmod 700 "$SCRATCH_ROOT" || exit 1;
+RUN_DIR="$SCRATCH_ROOT/ce-explain/$(date +%Y%m%d)-$(openssl rand -hex 3)";
+(umask 077; mkdir -p "$RUN_DIR") || exit 1; chmod 700 "$RUN_DIR" || exit 1;
+echo "$RUN_DIR";
 ```
 
-**Repo-touching inputs** (a concept with footprint in this repo, a diff, a recap): resolve the question-agnostic project profile from the shared cache instead of re-deriving it. Set `SKILL_DIR` to this skill's directory and run the helper (full protocol in `references/repo-profile-cache.md`):
+- **Diff mode.** **Empty range** or missing subject: do not silently explain something else. Report that before explaining an adjacent thing. Use a substitute only when the request permits it or the user agrees; name the substitution in the result and artifact `Subject` when present. Otherwise return the unresolved scope to the caller.
+- **Recap mode.** Do not pre-scan, count, or characterize the window in the main conversation. Instead dispatch a generic subagent directly at the extraction tier, seeded with `references/agents/work-recap-scout.md` and passed the resolved window, repo root, and `$RUN_DIR`. **Empty window:** report the absence of activity and finish without an explainer artifact. **When the harness exposes no subagent primitive**, run the scout inline with its prompt's sources and budgets, still write `recap-evidence.md`, and form no view of the window until it is done. Dispatch failures follow the orchestration reference's degradation rule.
 
-```bash
-SKILL_DIR="<absolute path of the directory containing the SKILL.md you just read>";
-python3 "$SKILL_DIR/scripts/repo-profile-cache.py" get
-```
+### Phase 3: Compose the explanation
 
-On `HIT`, load the profile JSON — stack, conventions, vocabulary — and take orientation from it. On `MISS`, dispatch a generic subagent with `references/agents/repo-profiler.md` to derive the profile, write its JSON to a file, then persist with `python3 "$SKILL_DIR/scripts/repo-profile-cache.py" put <file>` (re-set `SKILL_DIR` in that call — shell vars don't persist between Bash invocations). On `NO-CACHE` — or if the call errors — derive orientation inline and skip the `put`. The cache is an optimization, never a correctness dependency. The topic-specific evidence (the diff, the concept's call-sites, the window's commits) is always gathered fresh.
+Answer the question using the evidence, preserving material constraints and uncertainty. Before delivery, check every factual claim against its source. A function call does not establish guarantees about its uninspected implementation. Remove unsupported claims or state their uncertainty where they appear, including in diagrams and exercise answers. Choose prose, code, tables, or visuals when they improve understanding; no particular arrangement is required. Keep attribution accurate when explaining work by multiple people. When selecting from more evidence than the requested scope or depth can hold, disclose the selection; never silently present a partial account as exhaustive.
 
-- **Diff mode:** resolve the change (the `diff:` ref, or the most recent substantial change when the request points at one implicitly) and gather its evidence — the diff itself, the files it touches, any plan or solution doc that motivated it. Gather silently: nothing learned here is narrated to the user until Phase 3's ordering rule is satisfied.
-- **Recap mode:** dispatch a generic subagent seeded with `references/agents/work-recap-scout.md` (extraction tier), passing the resolved window, the repo root, and `$RUN_DIR`. It returns an evidence summary with commit shas and `file:line` pointers. **Empty window** (no git activity, no doc changes): say so, offer to widen the window, write no artifact, and end the run after the user responds.
-- **External concepts** (no footprint in this repo): skip repo grounding entirely — do not force repo context into the output. Research with whatever web tools are reachable. When none are, you may explain from model knowledge, but the artifact must label that content **Unverified — from model knowledge, not checked against current sources** in its metadata header.
-- **Idea mode:** the idea is a fixed given. Explain its implications, mechanics, and trade-offs for the user's understanding. Never scope it (`ce-brainstorm`'s job), never generate and rank alternatives (`ce-ideate`'s job).
+For an answer or material another workflow will incorporate, return that content directly. Each passage must carry the qualifications needed to use it accurately without separate notes. Do not create a standalone artifact unless the intended use needs one.
 
-### Phase 3: Check-in gate — before anything is revealed
+For a standalone artifact, read `references/explainer-html.md` or `references/explainer-markdown.md` at compose time for the selected format's compatibility and metadata requirements. For teaching artifacts, also read `references/check-in.md`. The run never blocks on the check-in; any exercises are static content in the artifact. Write `$RUN_DIR/explainer.html` or `explainer.md`, then deliver an inline summary plus the file path.
 
-Judge whether the material warrants a check-in (a routine recap does not; a gnarly diff or a hard concept does), then offer it with the blocking question tool. The user can always decline, and declining is never re-litigated. Read `references/check-in.md` for the warrant test, the prediction protocol, and exercise design.
+### Phase 4: Deliver
 
-**Diff mode with check-in accepted — hard ordering rule.** No interpretive content — explanation, annotation, diagram, or surfaced opportunity — may be shown before the user's prediction turn ends. Show only the raw change reference (the diff or its stat summary), ask for the prediction ("What do you think this change does, and why was it made?"), and **end the turn there**. When no blocking tool exists, ask in chat and stop — never print the reveal in the same message as the prediction prompt. Compose the explainer only after the prediction lands; the reveal names the gaps between the prediction and what the change actually does.
+A delivered answer or local artifact completes the explanation. Do not require a destination choice or manufacture follow-on work. If a destination was requested, read `references/destinations.md` before acting; it owns the destination adapters and publication consent. Return content to a workflow that owns the surrounding document rather than placing or publishing it yourself.
 
-### Phase 4: Compose the explainer
-
-Read the rendering reference for the resolved format **now**, not earlier: `references/explainer-html.md` (default) or `references/explainer-markdown.md` (when intake resolved `output:md`). Compose per its contract — visible metadata header, show-n-tell form matched to the material, ~70ch measure, single self-contained file — and write the artifact to `$RUN_DIR/explainer.html` (or `$RUN_DIR/explainer.md` when intake resolved `output:md`) before anything else happens with it. Display it to the user (inline summary plus the file path; open locally per Phase 6 when chosen). The artifact exists at that stable path from this moment — a declined destination ask never loses it.
-
-### Phase 5: Exercises (when warranted)
-
-For concepts, ideas, and dense recaps where the check-in was accepted: pose the exercises from `references/check-in.md` in chat, one at a time, using the blocking question tool where its option shape fits and free chat where the answer is narrative. Check each answer, correct it, and name the gap it exposed. Do not put exercises inside the artifact.
-
-### Phase 6: Destination ask and close
-
-Detect destinations by capability — probe the agent's own toolset and session context, never a closed list, and never treat a missing binary, env var, or unloaded MCP tool as proof a destination is unavailable when a connector could supply it. Local file and Leave it are ungated and always offered. Offer only what is detected; absence hides an option silently. Ask once with the blocking question tool — counting visible options against the platform's cap first (Claude Code's `AskUserQuestion` allows up to 4 explicit options; Codex's `request_user_input` only 2-3): when the visible set exceeds the cap, render a numbered list in chat with "Pick a number or describe what you want." and wait instead. Per-option routing:
-
-- **Artifact surface** (offered when an artifact-publishing tool is present in the current session's tools) — publish per `references/destinations.md`: re-emit the explainer as body-only markup (no doctype/html/head/body, styles inline, no external font links); the surface wraps content in its own skeleton and blocks external hosts.
-- **Local file** — copy the artifact out of `$RUN_DIR` to the path the user names, then where the platform exposes a browser-opening primitive (`open` on macOS, `xdg-open` on Linux, `start` on Windows) offer to open it; otherwise print the absolute path.
-- **Publish to Proof** (markdown output only) — publish per `references/destinations.md` and surface the returned share URL; on failure retry once, then report and move on.
-- **Send to Thinkroom** (offered only when a Thinkroom skill or CLI capability is detected) — send per `references/destinations.md`.
-- **Leave it** — report the `$RUN_DIR` path and state it is a temporary location that does not survive reboot; nothing else is written.
-
-**Non-interactive degradation:** when no interaction is possible at this ask (no blocking tool and no reply), do not hang and do not discard — the artifact is already at `$RUN_DIR`; report that path and end, skipping the improvement-observation handoffs below (they are offers, and an offer cannot fire without a user).
-
-**Improvement observations.** When composing the explainer surfaced things that could be better, route them by type after the destination ask — offer, don't auto-fire:
-
-- **New-capability ideas** — offer first; on acceptance invoke the `ce-ideate` skill via the platform's skill-invocation primitive, passing the observations as seed context. Do not merely tell the user to run it.
-- **Code-clarity findings** — offer first; on acceptance invoke the `ce-simplify-code` skill via the platform's skill-invocation primitive, passing the observations and the files they concern. Do not merely tell the user to run it.
-- **UI/UX polish opportunities** — present the observations in chat and tell the user to run `/ce-polish` themselves; ce-polish is user-invoked only (`disable-model-invocation`), so never attempt to invoke it via the skill primitive — the in-session observations carry into their run.
+Publishing to ht-ml.app is never headless and never inferred. Naming it is a choice of destination rather than confirmation after its public-publishing warning. If confirmation cannot be obtained, do not publish; preserve the canonical HTML and report its local `$RUN_DIR/explainer.html` path.
 
 ## Boundaries
 
-- **Not a verdict.** "Should we adopt X?" is `ce-pov`. ce-explain teaches what X is and how it works.
-- **Not repo memory.** Documenting a solved problem for future work is `ce-compound`. ce-explain teaches the human, not the repo.
-- **Not ideation or scoping.** An idea input is explained as given — implications and trade-offs — never expanded into options or a requirements dialogue.
-- **The check-in is never headless.** It exists to exercise the human; automating the answers deletes the product.
+- Use `ce-pov` to judge whether an approach should be adopted or changed. Explaining a historical choice is not endorsing it today.
+- Use `ce-compound` to capture durable project learning. Producing an explanation does not authorize maintaining repo memory.
+- Explain an idea as supplied; generating alternatives and scoping implementation belong to `ce-ideate`, `ce-brainstorm`, and `ce-plan`.
+- A reported failure to diagnose or fix belongs to `ce-debug`; a factual explanation of current behavior remains here.

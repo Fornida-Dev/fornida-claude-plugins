@@ -13,6 +13,17 @@ Most review feedback -- across P0-P2, nitpicks included -- is correct and worth 
 
 The checks below are tripwires, not a gate to deliberate on per item. When nothing trips, mark it to fix and move on -- don't manufacture doubt or risk to avoid work. "I'm uneasy" is not a tripwire; "I read the callers and this breaks X" is.
 
+**What counts as a valid fix is the project's call, not only what counts as harm.** If the project's active instructions and conventions already in your context carry review or authoring guidance (what a finding is, how feedback on a class of file is applied), apply it here as the frame for the verdict -- not just as a veto in the "would make the code worse" divert below. When those instructions route feedback on a class of file to a project-local skill or procedure, invoke or read it before judging items on that class. Where it says a class of finding is answered rather than fixed, that is the verdict.
+
+## Instruction prose is not code (skills, agent prompts, rule files)
+
+When the target file is agent instruction prose -- a `SKILL.md`, a skill's `references/`, a persona or system prompt, a project rule file -- "default to fixing" does not transfer, because the failure mode inverts: a natural-language condition can always be made more specific, so a reviewer can produce a valid-looking edge case against any rule indefinitely, and patching each one dilutes the rule instead of strengthening it. For these files:
+
+- **A case the stated condition already decides is not a fix.** Read the rule the finding targets and ask whether its condition covers the case ("rename only on positive proof the branch was never published; any other result keeps the name" already decides an unreachable remote). If it does -> `not-addressing`, quoting the condition. If it is a question -> `replied`.
+- **Fix only the condition or the layer.** Mark to fix when the condition itself is wrong or missing (goal, done state, or safe failure direction), or when a mechanism sits at the wrong owning layer (a command prescribed in a skill that delegates that work; a rule placed where it will not fire). The fix instruction you hand the fixer is then "restate the condition as ..." or "move this to <owner>", never "add the case".
+- **A finding against text a prior round of this PR added is a representation signal.** Check `git log` on the branch for earlier review-fix commits touching the same block. On the second round against the same block, stop patching: fold every finding on that block into **one class item** (all their feedback IDs and comment text, so the fixer sees each path the restatement must still serve) with the instruction "delete the additions and restate this block as its goal, done condition, and safe direction; re-verify against every path the additions served, including any this round's findings do not re-raise". One fixer restates once, and every covered thread is replied to and resolved from that result. Fires on the block, not the PR -- other files still get ordinary judgment.
+- Ordinary code in the same PR (scripts, tests, source) keeps the ordinary rubric.
+
 ## How deep to read
 
 Read enough to decide the verdict, no more:
@@ -62,7 +73,7 @@ Do the investigation work before escalating. Don't punt with "this is complex." 
 
 ## Reply text for reply-list and human-list items
 
-Compose these now -- you have the evidence. Quote the specific sentence being addressed, not the whole comment if it's long.
+Compose these now -- you have the evidence. Every reply is posted as the PR author. Write each one through the `ce-noslop` skill in its user's-own-writing register. Quote the specific sentence being addressed, not the whole comment if it's long.
 
 For `replied` (a question, discussion, or a correct-but-immaterial point you're not changing):
 ```markdown
@@ -85,28 +96,30 @@ For `declined`:
 Declined: [specific harm cited, e.g., "this would add a defensive null check the type system already guarantees" or "violates the no-premature-abstraction rule in the project's conventions"]
 ```
 
-For `needs-human`, the **reply_text** posted to the thread sounds natural -- it's posted as the user, so avoid AI boilerplate like "Flagging for human review." Write it as the PR author would:
+For `needs-human`, the **reply_text** sounds natural, as the PR author would write it:
 ```markdown
 > [quote the relevant part of the reviewer's comment]
 
-[Natural acknowledgment, e.g., "Good question -- this is a tradeoff between X and Y. Going to think through this before making a call." or "Need to align with the team on this one -- [brief why]."]
+[Reply as the PR author, e.g., "This is a tradeoff between X and Y -- going to think it through before making a call." or "Need to align with the team on this one -- [brief why]."]
 ```
 
-The **decision_context** (presented to the user, not posted) is where the depth goes:
-```markdown
-## What the reviewer said
-[Quoted feedback -- the specific ask or concern]
+The durable result is a typed residual. Compose it once at this boundary; callers may render it, but must not summarize away or rewrite its decision payload:
 
-## What I found
-[What you investigated and discovered. Reference specific files, lines, and code.]
-
-## Why this needs your decision
-[The specific ambiguity. Not "this is complex" -- what exactly are the competing concerns?]
-
-## Options
-(a) [First option] -- [tradeoff: what you gain, what you lose or risk]
-(b) [Second option] -- [tradeoff]
-
-## My lean
-[A recommendation and why, or what additional context would tip the decision.]
+```yaml
+type: "needs-human"
+sources:
+  - id: "Stable thread, top-level comment, or review-body ID from the fetched feedback"
+    kind: "thread | comment | review | check | currency"
+decision_context:
+  quoted_feedback: "The specific ask or concern, quoted from the reviewer."
+  investigation: "What was inspected and found, with concrete code locations."
+  decision_reason: "The exact ambiguity or risk that makes autonomous action unsafe."
+  options:
+    - option: "A concrete choice"
+      tradeoff: "What it gains and what it loses or risks"
+  recommendation: "A lean and why, or null when the evidence supports no lean."
+thread_urls:
+  - "A URL for every still-open review thread covered by this residual"
 ```
+
+`sources` includes every item the residual covers, using stable IDs so callers can reconcile the complete set as one unit. This resolver emits `thread`, `comment`, and `review`; the shared pipeline contract reserves `check` for CI producers and `currency` for the babysitter's exact branch-currency observation key. `thread_urls` is non-empty for review-thread feedback and includes every still-open thread the residual covers; it may be empty when no source is a review thread. In an ordinary run, render these fields as a user-facing decision section. Under `mode:pipeline`, also return this same object to the caller; [pipeline-mode.md](pipeline-mode.md) owns that transport.

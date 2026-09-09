@@ -10,11 +10,10 @@ content rendered by different skills shares the same HTML principles.
 
 The HTML artifact is the *only* artifact the skill produces for that run —
 output mode is exclusive (markdown OR HTML, never both). Downstream
-consumers that read HTML today (`ce-work`, human readers) do so directly;
-the agent-consumability rules below make that work. `ce-doc-review` is
-*not* currently an HTML consumer — its mutation mechanics are markdown-only,
-so the ce-plan handoff gates the 5.3.8 doc-review pass to `OUTPUT_FORMAT=md`
-runs and skips it for HTML.
+consumers that read HTML today (`ce-doc-review`, `ce-work`, human readers) do
+so directly; the agent-consumability rules below make that work. `ce-doc-review`
+also applies fixes in the artifact's native format while preserving its
+existing structure.
 
 ## Hard invariants
 
@@ -236,7 +235,7 @@ git remote get-url origin
 Apply linking to three reference shapes:
 
 - **Repo-relative code/doc paths** (`services/foo.ts`,
-  `docs/solutions/bar.md`) → `<repo-url>/blob/main/<path>`.
+  `<root>/solutions/bar.md`) → `<repo-url>/blob/main/<path>`.
 - **Named GitHub PRs/issues** (`PR #636`, `issue #1048`) →
   `<repo-url>/pull/636` or `<repo-url>/issues/1048`.
 - **Named external trackers** (Linear `ESP-1705`, Jira `PROJ-123`) →
@@ -274,6 +273,12 @@ anchor ID and visible heading text:
 Long HTML plans are agent-consumed as source text as often as they are read in
 a browser. Keep the heading text visible and adjacent to the `id`; do not rely
 on a nav link alone to carry the section name.
+
+Optional sections with a contract-defined semantic role put that role on their
+wrapping `<section>` with `data-ce-section`. For example, the broader-work
+relationship section uses `data-ce-section="work-relationships"`. The role is
+stable even when the visible heading changes; it supplements, rather than
+replaces, readable heading text and any useful anchor.
 
 ### Text contrast is local
 
@@ -358,7 +363,10 @@ contracts — the agent picks shapes that fit the content.
 - **Key Technical Decisions** — repeating cards with the decision ID,
   bold decision title (often with inline code for technical
   identifiers), and prose rationale. Flat cards (not collapsibles) —
-  these are reference material readers scan, not drill into.
+  these are reference material readers scan, not drill into. A
+  `session-settled:` annotation renders as visible text in the card —
+  never an attribute or hidden markup — stem preserved verbatim so
+  grep works on the HTML artifact.
 - **Risks** — cards with a color-coded status eyebrow (e.g., "RISK ·
   MITIGATED" / "OPEN · DEFERRED FOLLOW-UP") and prose body. Communicate
   status through the eyebrow's color plus an optional subtle full-card
@@ -473,7 +481,7 @@ with a UI/layout shape can carry a wireframe, whether or not the brainstorm
 as a whole is "a visual product" — a backend-heavy brainstorm with one
 screen change still earns a wireframe for that requirement. It still applies
 to brainstorm **requirements** output — the requirements-only unified plan
-`ce-brainstorm` writes (now under `docs/plans/`), not an implementation-ready
+`ce-brainstorm` writes (now under `<root>/plans/`), not an implementation-ready
 plan (`ce-plan`'s enriched output) — and only to UI-shaped requirements — a
 non-visual requirement (API design, data model, agent workflow,
 infrastructure) takes a conceptual diagram instead, not a
@@ -543,11 +551,10 @@ fine when the content suggests them.
 
 ## Agent-consumability rules
 
-Downstream agents that read HTML today (`ce-work`, a skill re-reading its
-own prior artifact on a resume run, future consumers) reason over the HTML
-as text — the way they reason over markdown, not via DOM extraction or a
-script-style parse. `ce-doc-review` is not a current HTML consumer (see
-opening note).
+Downstream agents that read HTML today (`ce-doc-review`, `ce-work`, a skill
+re-reading its own prior artifact on a resume run, future consumers) reason
+over the HTML as text — the way they reason over markdown, not via DOM
+extraction or a script-style parse.
 
 These rules are why such a consumer can locate one item (a single
 requirement, unit, idea, or other ID-bearing entry) and reason over it from

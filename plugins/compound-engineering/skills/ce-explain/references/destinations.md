@@ -1,25 +1,30 @@
-# Destination Sub-flows
+# Requested Destinations
 
-Per-destination mechanics for Phase 6. The menu itself and the one-line action per option live inline in SKILL.md — this file carries only the elaborate sub-flows. Detection is by capability: probe the current session's tools and context; a missing binary, env var, or unloaded MCP tool is not proof of absence when a connector could supply the capability. Local file is the always-present floor.
+Load only when delivery to a destination was requested. Use the available capability for that destination and verify the resulting file, URL, or document reference. A calling workflow that owns the surrounding artifact also owns placement and publication; return the explanation to it instead.
 
-## Artifact surface
+Resolve only the destination information needed to complete the request. Do not require a menu or offer to rewrite or improve the explanation. Adapt the content for its intended reader before asking for any required consent to publish it. On a delivery failure, preserve the canonical local artifact and report what did not complete. Do not substitute another publisher without authorization.
 
-Offered when an artifact-publishing tool is present in the session's toolset.
+## Claude Artifact
 
-Artifact surfaces wrap published content in their own document skeleton (doctype, head, body) and enforce a CSP that blocks requests to external hosts. Publishing the run-dir file verbatim would nest a full HTML document inside theirs and break on any external reference. So:
+Available for HTML output when the session is Claude Code and its Artifact tool is present. Give the tool the canonical `$RUN_DIR/explainer.html`, follow its current contract, and confirm the returned URL or reference to the user. The tool owns any adaptation needed for its artifact runtime; do not pre-process the HTML for it.
 
-1. Re-emit the explainer as **body-only markup**: strip the doctype/`<html>`/`<head>`/`<body>` shell; keep the content elements.
-2. Keep all CSS inline (a `<style>` element at the top of the fragment is acceptable); no external font links, no external images — the explainer's no-external-request invariant already guarantees this.
-3. Keep the visible metadata header and composition footer in the fragment — they are part of the artifact.
-4. Publish, confirm the returned URL/reference to the user.
+## Publish publicly to ht-ml.app
 
-The run-dir file remains the complete standalone document; the fragment is a re-emission, not a replacement.
+This is the preferred HTML publisher when the Claude Artifact adapter is not selected. ht-ml.app accepts the complete standalone HTML document and works through ordinary HTTP, independent of the agent harness.
+
+Before publishing, state that **the page is public and may be indexed, crawled, copied, or archived** and obtain explicit confirmation after that warning for the actual artifact being sent. The initial request itself does not count as confirmation. Confirmation given after the warning covers the same artifact. If the artifact changes materially, obtain confirmation for the changed content. If confirmation cannot be obtained, do not publish; preserve the canonical `$RUN_DIR/explainer.html` and report its local path. Never publish headlessly. If the content is sensitive, keep it local.
+
+After the user selects the warned option or explicitly confirms after the warning:
+
+1. Prefer any ht-ml.app or general HTML-publishing capability detected in the current session. When it is a skill, invoke it through the platform's skill-invocation primitive with the canonical `$RUN_DIR/explainer.html` and the user's public-publishing confirmation; otherwise call the detected tool, connector, or browser capability directly. Follow that capability's current contract. Do not assume a particular skill name or installation path.
+2. When no publisher is installed, use a reachable web or HTTP interface to follow ht-ml.app's agent-facing instructions at `https://ht-ml.app/llms.txt` (or its linked API help) and publish the complete canonical HTML. The explainer is already composed; do not select a template or redesign it.
+3. Surface the returned URL. Treat any returned update credential as a secret: do not print it in chat or embed it in the page. On failure, retry once after a short wait, then report the error and fall back to the canonical local-file path.
 
 ## Local file
 
-1. Ask nothing extra if the user already named a path; otherwise accept the path from their menu answer's free-text.
+1. Ask nothing extra if the user already named a path; otherwise ask for the missing path under the skill body's interaction rule.
 2. Copy the artifact out of the run dir to that path (`cp "$RUN_DIR/explainer.html" <path>` — or `explainer.md` for a markdown run), creating parent directories if needed.
-3. Where the platform exposes a browser-opening primitive (`open` on macOS, `xdg-open` on Linux, `start` on Windows), offer to open it; otherwise print the absolute path.
+3. Report the absolute path. Open it when requested and the host supports that action.
 
 ## Publish to Proof (markdown output only)
 

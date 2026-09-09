@@ -1,11 +1,11 @@
 # Vendored plugin provenance (upstream + pinned SHA)
 
-- compound-engineering  <=  github.com/EveryInc/compound-engineering-plugin (repo root; upstream moved plugin out of /plugins/compound-engineering into a monorepo root) @ 240b69efcc9832e02036c802c3f65ba2684424b5 (vendored subset: .claude-plugin/ + skills/ + root docs; src/tests/build toolchain excluded)
-- caveman  <=  github.com/JuliusBrussee/caveman  @ 0d95a81d35a9f2d123a5e9430d1cfc43d55f1bb0
-- superclaude  <=  github.com/SuperClaude-Org/SuperClaude_Framework (/plugins/superclaude) @ 226c45cc93b865108843a669c6545d421784b68c
-- github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ 108f8f429d6e334578bf51d14776b6753a386214
-- superpowers  <=  github.com/obra/superpowers  @ d884ae04edebef577e82ff7c4e143debd0bbec99
-- vercel  <=  github.com/vercel/vercel-plugin  @ de37d3199cd0f62cd7efdc4a9489e111e2deeedb
+- compound-engineering  <=  github.com/EveryInc/compound-engineering-plugin (repo root; RAW, foreign-tool mirror dirs + tests/ excluded) @ b36047e1b4b2123df2f3529bf04b5f2a7c5f84e4
+- caveman  <=  github.com/JuliusBrussee/caveman  @ 0d95a81d35a9f2d123a5e9430d1cfc43d55f1bb0  (HELD — upstream became a monorepo with BSL-1.1 engine/proxy/rewriter/browse/mcp/shrink/shared-platform; raw redistribution in this public repo is a license violation. Update needs a curated MIT-only subset, see script skip note.)
+- superclaude  <=  github.com/SuperClaude-Org/SuperClaude_Framework (/plugins/superclaude) @ 1b81e51db955126ec8983769b96dec575d730c05
+- github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ 517b2fcd1b60fa2181ac52dcf8492361ba341180
+- superpowers  <=  github.com/obra/superpowers  @ b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+- vercel  <=  github.com/vercel/vercel-plugin  @ dca8da784e876cbb8e81bd98cb5b2b87323449ca
 
 ## No Fornida overlays — plugins are vendored RAW
 

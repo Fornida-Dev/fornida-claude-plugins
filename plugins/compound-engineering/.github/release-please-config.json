@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "include-component-in-tag": true,
   "release-search-depth": 20,
-  "commit-search-depth": 50,
+  "commit-search-depth": 500,
   "plugins": [],
   "packages": {
     ".": {
@@ -47,7 +47,8 @@
         ".kimi-plugin/marketplace.json",
         ".claude-plugin/marketplace.json",
         ".cursor-plugin/marketplace.json",
-        ".grok-plugin/marketplace.json"
+        ".grok-plugin/marketplace.json",
+        ".omp-plugin/marketplace.json"
       ],
       "extra-files": [
         {
@@ -84,6 +85,11 @@
           "type": "json",
           "path": ".devin-plugin/plugin.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".omp-plugin/marketplace.json",
+          "jsonpath": "$.plugins[0].version"
         },
         {
           "type": "json",

@@ -1,151 +1,24 @@
+<div align="center">
+
+<img src="assets/logo.png" alt="Compound Engineering" width="120">
+
 # Compound Engineering
 
+**AI skills that make each unit of engineering work easier than the last.**
+
 [![Build Status](https://github.com/EveryInc/compound-engineering-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/EveryInc/compound-engineering-plugin/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
+[![Skills](https://img.shields.io/badge/skills-35-black.svg)](docs/guides/README.md)
 
-AI skills that make each unit of engineering work easier than the last.
+</div>
 
-## Philosophy
+Compound Engineering is a plugin of 35 skills for AI coding agents. It structures the work around a loop — brainstorm, plan, build, review, then **capture what you learned** — so the knowledge from each change is written down where the next change can read it.
 
-**Each unit of engineering work should make subsequent units easier -- not harder.**
+It runs on 14 agent hosts, including Claude Code, Cursor, and Codex.
 
-Traditional development accumulates technical debt. Every feature adds complexity. Every bug fix leaves behind a little more local knowledge that someone has to rediscover later. The codebase gets larger, the context gets harder to hold, and the next change becomes slower.
+Maintained by [Kieran Klaassen](https://github.com/kieranklaassen) and [Trevin Chow](https://github.com/tmchow), with contributions from the open-source community.
 
-Compound engineering inverts this. 80% is in planning and review, 20% is in execution:
-
-- Plan thoroughly before writing code with `/ce-brainstorm` and `/ce-plan` using one readiness-based plan artifact
-- Review to catch issues and calibrate judgment with `/ce-code-review` and `/ce-doc-review`
-- Codify knowledge so it is reusable with `/ce-compound`
-- Keep quality high so future changes are easy
-
-The point is not ceremony. The point is leverage. A good brainstorm makes the plan sharper. A good plan makes execution smaller. A good review catches the pattern, not just the bug. A good compound note means the next agent does not have to learn the same lesson from scratch.
-
-**Learn more**
-
-- [Skill documentation catalog](docs/skills/README.md)
-- [Compound engineering: how Every codes with agents](https://every.to/chain-of-thought/compound-engineering-how-every-codes-with-agents)
-- [The story behind compounding engineering](https://every.to/source-code/my-ai-had-already-fixed-the-code-before-i-saw-it)
-
-## Workflow
-
-The core loop is six steps: **brainstorm** the requirements, **plan** the implementation, **work** through the plan, **simplify** what you wrote, **review** the result, then **compound** the learning -- and repeat with better context.
-
-| Skill | Purpose |
-|-------|---------|
-| [`/ce-brainstorm`](docs/skills/ce-brainstorm.md) | Interactive Q&A to think through a feature or problem and write a requirements-only unified plan before planning |
-| [`/ce-plan`](docs/skills/ce-plan.md) | Enrich feature ideas or requirements-only plans into implementation-ready plans |
-| [`/ce-work`](docs/skills/ce-work.md) | Execute implementation-ready plans with worktrees and task tracking |
-| [`/ce-simplify-code`](docs/skills/ce-simplify-code.md) | Refine the freshly written code for clarity and reuse before review |
-| [`/ce-code-review`](docs/skills/ce-code-review.md) | Multi-agent review against the plan before merging |
-| [`/ce-compound`](docs/skills/ce-compound.md) | Capture the learning into `docs/solutions/` so the next loop starts smarter |
-
-Each cycle compounds: `/ce-compound` writes learnings that the next `/ce-brainstorm` and `/ce-plan` read as grounding -- brainstorms sharpen plans, plans inform future plans, reviews catch more issues, patterns get documented. That return arrow is the whole point.
-
-### Additional skills
-
-These sit around the loop or get reached for on demand -- not every cycle needs them.
-
-| Skill | When to reach for it |
-|-------|---------|
-| [`/ce-ideate`](docs/skills/ce-ideate.md) | *Before the loop*, when you don't yet know what to build -- generates and critically ranks grounded ideas, then routes the strongest one into `/ce-brainstorm` |
-| [`/ce-strategy`](docs/skills/ce-strategy.md) | *Upstream anchor* -- creates and maintains `STRATEGY.md`, read as grounding by ideate, brainstorm, and plan so strategy choices flow into every feature |
-| [`/ce-product-pulse`](docs/skills/ce-product-pulse.md) | *Outer loop* -- a time-windowed report on what users actually experienced (usage, performance, errors), saved to `docs/pulse-reports/`; its follow-ups feed back into ideation and brainstorming |
-| [`/ce-debug`](docs/skills/ce-debug.md) | *Instead of brainstorm -> plan -> work* when the input is a bug rather than a feature -- reproduce, trace root cause, fix, then polish/review before PR handoff when warranted |
-| [`/ce-pov`](docs/skills/ce-pov.md) | *On demand, before you commit* -- a decisive, project-grounded verdict on whether to adopt, switch to, or revisit an external technology, library, pattern, or platform; works cold or mid-session, and proposes the next step (`/ce-plan`, `/ce-brainstorm`, or a spike) from the verdict |
-| [`/ce-explain`](docs/skills/ce-explain.md) | *On demand, to keep learning* -- turns a concept, a diff, an idea, or "what did I do this week?" into a dense, visual explainer written for you personally, with an optional check-in (predict-then-reveal for diffs, corrected exercises) that makes it stick |
-
-For the full catalog and how each skill chains together, see [docs/skills](docs/skills/README.md). The complete inventory is [below](#full-skill-inventory).
-
-## Quick Example
-
-**Finding a direction** -- when you don't have a specific idea yet, ideate first, then carry the strongest survivor into the loop:
-
-```text
-/ce-ideate new drawing tools
-/ce-ideate surprise me
-/ce-ideate github issues   # ground ideas in your open issues instead of a prompt
-```
-
-`/ce-ideate` does the homework first (codebase, past learnings, prior art on the web, optionally your issue tracker), then hands you a ranked set of grounded candidates to take into `/ce-brainstorm`.
-
-**Standard feature loop** -- turn a rough idea into shipped, reviewed code:
-
-```text
-/ce-brainstorm make background job retries safer
-/ce-plan
-/ce-work
-/ce-simplify-code
-/ce-code-review
-/ce-compound
-```
-
-**Simplifying code** -- use it after fresh implementation work, or point it at code that keeps slowing changes down:
-
-```text
-/ce-simplify-code
-/ce-simplify-code simplify the code in my most-churned file
-```
-
-The first pass tightens recent branch changes before review. The targeted pass is useful when one file keeps absorbing unrelated fixes, follow-ups, or merge conflicts.
-
-**Debugging a bug** -- when you start from broken behavior instead of a feature:
-
-```text
-/ce-debug the checkout webhook sometimes creates duplicate invoices
-/ce-code-review
-/ce-compound
-```
-
-**Autonomous** -- hand off a feature and let the agent run the whole pipeline:
-
-```text
-/ce-brainstorm describe the feature
-/lfg
-```
-
-`/lfg` runs the loop hands-off: it plans, works through the plan, simplifies, runs code review and applies the fixes, runs browser tests, commits, pushes, opens a PR, then watches CI and repairs failures until it's green. Start it after `/ce-brainstorm` so it plans against real requirements rather than a one-line prompt. It's the autopilot version of the standard loop -- neat when you want to step away and come back to an open, green PR.
-
-## Getting Started
-
-After installing, run `/ce-setup` in any project. It checks repo-local config, reports optional tool capabilities, and helps keep machine-local CE settings safely gitignored.
-
-The `compound-engineering` plugin currently ships 30 skills and 0 standalone agents. Specialist review, research, and workflow behavior lives inside the owning skills as skill-local prompt assets.
-
-### Full Skill Inventory
-
-| Skill | Purpose |
-|-------|---------|
-| [`/ce-strategy`](docs/skills/ce-strategy.md) | Create or maintain `STRATEGY.md` |
-| [`/ce-ideate`](docs/skills/ce-ideate.md) | Generate and critically evaluate grounded ideas |
-| [`/ce-pov`](docs/skills/ce-pov.md) | Form a decisive, project-grounded verdict on an external input |
-| [`/ce-explain`](docs/skills/ce-explain.md) | Explain a concept, diff, idea, or window of your own work as a personal learning artifact |
-| [`/ce-brainstorm`](docs/skills/ce-brainstorm.md) | Explore requirements and write a right-sized requirements doc |
-| [`/ce-plan`](docs/skills/ce-plan.md) | Create structured implementation plans |
-| [`/ce-work`](docs/skills/ce-work.md) | Execute implementation plans systematically |
-| [`/ce-code-review`](docs/skills/ce-code-review.md) | Review code with skill-local reviewer personas |
-| [`/ce-doc-review`](docs/skills/ce-doc-review.md) | Review requirements and plan documents |
-| [`/ce-debug`](docs/skills/ce-debug.md) | Reproduce failures, trace root cause, fix bugs, and prepare non-trivial fixes for PR |
-| [`/ce-compound`](docs/skills/ce-compound.md) | Document solved problems to compound team knowledge |
-| [`/ce-compound-refresh`](docs/skills/ce-compound-refresh.md) | Refresh stale or drifting learnings |
-| [`/ce-optimize`](docs/skills/ce-optimize.md) | Run iterative optimization loops |
-| [`/ce-product-pulse`](docs/skills/ce-product-pulse.md) | Generate time-windowed product pulse reports |
-| [`/ce-riffrec-feedback-analysis`](docs/skills/ce-riffrec-feedback-analysis.md) | Convert Riffrec recordings or notes into structured feedback |
-| [`/ce-sweep`](docs/skills/ce-sweep.md) | Sweep feedback sources, track item lifecycles, and emit an `/lfg`-ready plan |
-| [`/ce-resolve-pr-feedback`](docs/skills/ce-resolve-pr-feedback.md) | Resolve PR review feedback |
-| [`/ce-commit`](docs/skills/ce-commit.md) | Create a git commit with a clear message |
-| [`/ce-commit-push-pr`](docs/skills/ce-commit-push-pr.md) | Commit, push, and open a PR that teaches any concept the change newly introduces |
-| [`/ce-babysit-pr`](docs/skills/ce-babysit-pr.md) | Watch an open PR and keep it moving toward merge, reacting to review comments and CI as they arrive |
-| [`/ce-worktree`](docs/skills/ce-worktree.md) | Ensure work happens in an isolated git worktree |
-| [`/ce-promote`](docs/skills/ce-promote.md) | Draft user-facing announcement copy |
-| [`/ce-test-browser`](docs/skills/ce-test-browser.md) | Run browser tests on PR-affected pages |
-| [`/ce-test-xcode`](docs/skills/ce-test-xcode.md) | Build and test iOS apps on simulator |
-| [`/ce-setup`](docs/skills/ce-setup.md) | Diagnose optional tool capabilities and project config |
-| [`/ce-simplify-code`](docs/skills/ce-simplify-code.md) | Simplify recent code changes |
-| [`/ce-polish`](docs/skills/ce-polish.md) | Start a dev server and iterate on UX polish |
-| [`/ce-proof`](docs/skills/ce-proof.md) | Create, edit, and share Proof documents |
-| [`/ce-dogfood`](docs/skills/ce-dogfood.md) | Hands-off diff-scoped browser QA of the active branch, with autonomous fixes |
-| [`/lfg`](docs/skills/lfg.md) | Full autonomous engineering workflow |
-
----
+For understanding before a change, ask `ce-explain` how the relevant behavior works and why it exists. For a recommendation, use `ce-pov`; “oracle this” adds independent model opinions. Both can contribute to another workflow without requiring a separate human interaction.
 
 ## Install
 
@@ -156,7 +29,8 @@ The `compound-engineering` plugin currently ships 30 skills and 0 standalone age
 /plugin install compound-engineering
 ```
 
-> **Already have Compound Engineering installed?** Compound Engineering moved to a root-native layout. You must refresh the marketplace *before* updating — see [Existing Installs](#existing-installs). Running `/plugin update` alone keeps you on the old version.
+> [!IMPORTANT]
+> **Already have Compound Engineering installed?** Refresh the marketplace *before* updating — see [Upgrading](docs/install/upgrading.md). Running `/plugin update` alone keeps you on the old version.
 
 ### Cursor
 
@@ -168,12 +42,24 @@ In Cursor Agent chat, install from the plugin marketplace:
 
 Or search for "compound engineering" in the plugin marketplace.
 
+### Grok Bot
+
+Grok Bot is its own app, but it uses your Cursor account and plugin library. There is no separate Grok Bot login. Install Compound Engineering once on that account and Grok Bot agents can load it.
+
+In Cursor Agent chat:
+
+```text
+/add-plugin compound-engineering
+```
+
+Or search for "compound engineering" in the Cursor plugin marketplace. Do not run `/add-plugin` in the Grok Bot chat, and do not clone this repository onto the Grok Bot computer.
+
 ### Codex App
 
 Compound Engineering is not listed in Codex's built-in plugin marketplace yet. Add it as a custom marketplace:
 
 1. In the Codex app, open **Plugins** from the sidebar.
-2. Click **Add** / **Add plugin marketplace**.
+2. Click the arrow next to **Create**, then select **Add marketplace**.
 3. Enter:
 
    | Field | Value |
@@ -183,7 +69,7 @@ Compound Engineering is not listed in Codex's built-in plugin marketplace yet. A
    | Sparse paths | leave blank |
 
 4. Click **Add marketplace**.
-5. Select **Compound Engineering**, install **compound-engineering**, then restart Codex.
+5. Search for **Compound Engineering**, install **compound-engineering-plugin**, then restart Codex.
 
 The Codex app install is self-contained for Compound Engineering. Specialist reviewer and research behavior lives inside the skills as local prompt assets; no separate custom-agent install step is required.
 
@@ -216,27 +102,102 @@ CODEX_HOME="$HOME/.codex/profiles/work" codex plugin add compound-engineering@co
 
 The marketplace step only makes the plugin available; the plugin install is what activates the native CE skills for that profile.
 
-#### Remove the legacy Codex tool map (pre-native installs)
+**Another editor or CLI?** Kimi Code CLI, Cline, Grok Build CLI, Devin CLI, GitHub Copilot, Factory Droid, Qwen Code, OpenCode, Pi, oh-my-pi (omp), and Antigravity CLI are all supported — see [More install options](#more-install-options).
 
-If you previously installed Compound Engineering with the Bun `convert` / `install --to codex` CLI (before native Codex plugin support), that path may have inserted a managed block into your **global** Codex instructions file:
+---
 
-`<!-- BEGIN COMPOUND CODEX TOOL MAP -->` … `<!-- END COMPOUND CODEX TOOL MAP -->`
+## Philosophy
 
-in `$CODEX_HOME/AGENTS.md` (default `~/.codex/AGENTS.md`). That Claude-compat tool map is obsolete — CE skills name Codex tools inline — and one of its lines incorrectly told Codex to collapse subagent dispatch onto the main thread. Native plugin install does **not** add this block.
+**Each unit of engineering work should make subsequent units easier -- not harder.**
 
-Paste this into Codex (or any agent with access to your home directory) to remove it:
+Invocation syntax: this README uses `/skill-name` examples for slash-skill hosts. In Codex, invoke installed skills with `$skill-name` (for example, `$ce-plan` and `$lfg`). In oh-my-pi (omp), these prompts can model-route to visible skills; use the native deterministic `/skill:<name>` form for manual-only or hidden skills (for example, `/skill:ce-polish`). `/goal` remains a Codex built-in command.
+
+Traditional development accumulates technical debt. Every feature adds complexity. Every bug fix leaves behind a little more local knowledge that someone has to rediscover later. The codebase gets larger, the context gets harder to hold, and the next change becomes slower.
+
+Compound engineering inverts this. 80% is in planning and review, 20% is in execution:
+
+- Plan thoroughly before writing code with `/ce-brainstorm` and `/ce-plan` using one readiness-based plan artifact
+- Review to catch issues and calibrate judgment with `/ce-code-review` and `/ce-doc-review`
+- Codify knowledge so it is reusable with `/ce-compound`
+- Keep quality high so future changes are easy
+
+The point is not ceremony. The point is leverage. A good brainstorm makes the plan sharper. A good plan makes execution smaller. A good review catches the pattern, not just the bug. A good compound note means the next agent does not have to learn the same lesson from scratch.
+
+## The loop
+
+The core loop is six steps: **brainstorm** the requirements, **plan** the implementation, **work** through the plan, **simplify** what you wrote, **review** the result, then **compound** the learning -- and repeat with better context.
+
+| Skill | Purpose |
+|-------|---------|
+| [`/ce-brainstorm`](docs/guides/ce-brainstorm.md) | Interactive Q&A to think through a feature or problem and write a requirements-only unified plan before planning |
+| [`/ce-plan`](docs/guides/ce-plan.md) | Enrich feature ideas or requirements-only plans into implementation-ready plans |
+| [`/ce-work`](docs/guides/ce-work.md) | Execute implementation-ready plans natively or through a qualified cross-model author while retaining host verification, commits, and shipping |
+| [`/ce-simplify-code`](docs/guides/ce-simplify-code.md) | Refine the freshly written code for clarity and reuse before review |
+| [`/ce-code-review`](docs/guides/ce-code-review.md) | Report-only multi-agent review against the plan before merging; local apply is explicit |
+| [`/ce-compound`](docs/guides/ce-compound.md) | Capture the learning into `docs/solutions/` so the next loop starts smarter |
+
+Each cycle compounds: `/ce-compound` writes learnings that the next `/ce-brainstorm` and `/ce-plan` read as grounding -- brainstorms sharpen plans, plans inform future plans, reviews catch more issues, patterns get documented. That return arrow is the whole point.
+
+<img src="assets/demo/compound-loop.gif" alt="A ce-compound run writes a learning about an env-var trap; 18 days later, on unrelated work, a ce-plan run finds that learning and carries its constraints into the new plan" width="100%">
+
+**Run one teaches it. Run two remembers.**
+
+<sub>Replayed from a real pair of sessions 18 days apart, with names and paths anonymized and the six-minute run compressed to about 30 seconds. Nothing shown is behavior the skills don't have — see <a href="assets/demo/README.md">assets/demo</a> for the source and the substitutions.</sub>
+
+> Artifact folders like `docs/solutions/` and `docs/plans/` are the **defaults**. A project whose `docs/` is tracked content can relocate every CE artifact folder under one repo-relative root via the `docs_root` setting -- see [configuration](docs/guides/configuration.md#artifact-root).
+
+## Try it
+
+After installing, run `/ce-setup` in any project. It reports optional tool capabilities, creates repo `.compound-engineering/config.yaml` when missing, refreshes the committed example, and gitignores an existing local override.
+
+**The standard loop** -- turn a rough idea into shipped, reviewed code:
 
 ```text
-Remove the obsolete Compound Engineering Codex tool-map block from my Codex home AGENTS.md.
-
-1. Check `$CODEX_HOME/AGENTS.md` if CODEX_HOME is set, otherwise `~/.codex/AGENTS.md`. If I use Codex profiles, also check `~/.codex/profiles/*/AGENTS.md`.
-2. Look for the exact sentinels `<!-- BEGIN COMPOUND CODEX TOOL MAP -->` and `<!-- END COMPOUND CODEX TOOL MAP -->`.
-3. If both are present, delete only the span from the BEGIN line through the END line (inclusive), leaving any other user content untouched. Do not edit project/repo AGENTS.md unless those exact sentinels are present there.
-4. If the file is empty after the removal, delete the file.
-5. Show a short before/after summary of what you changed (or say the block was already absent). Do not add a replacement tool map.
+/ce-brainstorm make background job retries safer
+/ce-plan
+/ce-work
+/ce-simplify-code
+/ce-code-review
+/ce-compound
 ```
 
-Re-running the Bun convert/install CLI for Codex also strips the block if it is still present; it no longer inserts it.
+**Autonomous** -- hand off a feature and let the agent run the whole pipeline:
+
+```text
+/ce-brainstorm describe the feature
+/lfg
+```
+
+`/lfg` runs the loop hands-off: it plans, works through the plan, simplifies, runs code review and applies the fixes, runs browser tests, then commits. When a git remote exists it pushes, opens a PR, and watches CI with a bounded repair loop (it does not merge, and it can finish with leftovers if the repair budget is hit). With no remote it stops at local commits. Start it after `/ce-brainstorm` so it plans against real requirements rather than a one-line prompt.
+
+Starting from a bug instead of a feature? Use [`/ce-debug`](docs/guides/ce-debug.md). Not sure what to build yet? Start with [`/ce-ideate`](docs/guides/ce-ideate.md).
+
+## Skills at a glance
+
+35 skills, grouped by what they are for. The full catalog, with a page per skill and how each one chains into the others, is in **[docs/guides](docs/guides/README.md)**.
+
+| Group | Skills | What it covers |
+|-------|--------|----------------|
+| [Core loop](docs/guides/README.md#the-core-loop) | `ce-brainstorm` `ce-plan` `ce-work` `ce-simplify-code` `ce-code-review` `ce-compound` | The six steps of every iteration |
+| [Around the loop](docs/guides/README.md#around-the-loop) | `ce-strategy` `ce-product-pulse` `ce-sweep` `ce-compound-refresh` | Anchors and feeds that keep the loop grounded |
+| [On demand](docs/guides/README.md#on-demand) | `ce-ideate` `ce-bakeoff` `ce-pov` `ce-debug` `ce-explain` `ce-doc-review` `ce-optimize` `ce-prototype` | Reached for when a specific need arises |
+| [Git workflow](docs/guides/README.md#git-workflow) | `ce-commit` `ce-commit-push-pr` `ce-babysit-pr` `ce-resolve-pr-feedback` `ce-worktree` | Committing, shipping, and shepherding PRs |
+| [Autonomous](docs/guides/README.md#autonomous-pipeline) | `lfg` | The whole pipeline, hands-off |
+| [Testing & design](docs/guides/README.md#frontend-design) | `ce-test-browser` `ce-test-xcode` `ce-polish` `ce-dogfood` | Verifying and polishing what you built |
+| [Collaboration](docs/guides/README.md#collaboration) | `ce-proof` `ce-handoff` `ce-promote` | Sharing work and handing it off |
+| [Utilities](docs/guides/README.md#workflow-utilities) | `ce-setup` `ce-noslop` `ce-retune` `ce-riffrec-feedback-analysis` | Setup, writing, and maintenance |
+
+**Learn more**
+
+- [Skill documentation catalog](docs/guides/README.md)
+- [Compound engineering: how Every codes with agents](https://every.to/chain-of-thought/compound-engineering-how-every-codes-with-agents)
+- [The story behind compounding engineering](https://every.to/source-code/my-ai-had-already-fixed-the-code-before-i-saw-it)
+
+---
+
+## More Install Options
+
+[Claude Code, Cursor, and Codex](#install) are at the top. Everything here is equally supported.
 
 ### Kimi Code CLI
 
@@ -286,7 +247,7 @@ grok plugin marketplace add EveryInc/compound-engineering-plugin
 grok plugin install compound-engineering
 ```
 
-Both paths track the repository directly (no commit pin), so no Bun install step is needed. Add `--trust` to skip the install confirmation. `grok` stores config under `~/.grok`; start a new session after installing so the skills load.
+Both paths track the repository directly (no commit pin). Add `--trust` to skip the install confirmation. `grok` stores config under `~/.grok`; start a new session after installing so the skills load.
 
 Compound Engineering is also being submitted to the official [xAI plugin marketplace](https://github.com/xai-org/plugin-marketplace); see [`docs/grok-marketplace-submission.md`](docs/grok-marketplace-submission.md) for the maintainer runbook.
 
@@ -333,7 +294,7 @@ copilot plugin marketplace add EveryInc/compound-engineering-plugin
 copilot plugin install compound-engineering@compound-engineering-plugin
 ```
 
-Copilot CLI reads the existing Claude-compatible plugin manifests, so no separate Bun install step is needed.
+Copilot CLI reads the existing Claude-compatible plugin manifests directly.
 
 ### Factory Droid
 
@@ -344,7 +305,7 @@ droid plugin marketplace add https://github.com/EveryInc/compound-engineering-pl
 droid plugin install compound-engineering@compound-engineering-plugin
 ```
 
-Droid uses `plugin@marketplace` plugin IDs; here `compound-engineering` is the plugin and `compound-engineering-plugin` is the marketplace name. Droid installs the existing Claude Code-compatible plugin and translates the format automatically, so no Bun install step is needed.
+Droid uses `plugin@marketplace` plugin IDs; here `compound-engineering` is the plugin and `compound-engineering-plugin` is the marketplace name. Droid installs the existing Claude Code-compatible plugin and translates the format automatically.
 
 ### Qwen Code
 
@@ -352,7 +313,7 @@ Droid uses `plugin@marketplace` plugin IDs; here `compound-engineering` is the p
 qwen extensions install EveryInc/compound-engineering-plugin:compound-engineering
 ```
 
-Qwen Code installs Claude Code-compatible plugins directly from GitHub and converts the plugin format during install, so no Bun install step is needed.
+Qwen Code installs Claude Code-compatible plugins directly from GitHub and converts the plugin format during install.
 
 ### OpenCode
 
@@ -386,6 +347,38 @@ Recommended companion for richer blocking questions:
 pi install npm:pi-ask-user
 ```
 
+### oh-my-pi (omp)
+
+oh-my-pi (omp) installs Compound Engineering through its marketplace flow. The repo ships a native `.omp-plugin/marketplace.json` catalog whose plugin entry carries a release-managed `version`, so omp's update checker can see each new CE release:
+
+```text
+omp plugin marketplace add EveryInc/compound-engineering-plugin
+omp plugin install compound-engineering@compound-engineering-plugin
+```
+
+To stay current automatically, enable auto-update:
+
+```bash
+omp config set marketplace.autoUpdate auto
+```
+
+The default `notify` mode only writes update availability to the debug log — it does not prompt — so without `auto` you will not hear about new releases. To upgrade by hand instead, run `omp plugin upgrade compound-engineering@compound-engineering-plugin`.
+
+<details>
+<summary>Other install paths (pin-style and contributor development)</summary>
+
+`omp install https://github.com/EveryInc/compound-engineering-plugin` installs the repository as an npm-style plugin. That path has **no update mechanism** — treat it as pinning a snapshot, not as the recommended install.
+
+For local development from a checkout, use a live symlink instead:
+
+```bash
+omp plugin link "$PWD"
+```
+
+</details>
+
+Run `/reload-plugins` or start a new omp session after installing so the skills load. omp's native deterministic command is `/skill:<name>` (for example, `/skill:ce-plan`); ordinary `/skill-name` prompts can also model-route to visible skills, but manual-only or hidden skills require the native form. See [`docs/specs/omp.md`](docs/specs/omp.md) for details.
+
 ### Antigravity CLI (`agy`)
 
 Google has replaced the consumer Gemini CLI with [Antigravity CLI](https://antigravity.google) (`agy`), which still runs on Gemini models. Install Compound Engineering directly from GitHub — no clone step required:
@@ -407,144 +400,17 @@ The bundled `.agy/` directory remains a compatibility entry point (`agy plugin i
 
 See [`.agy/INSTALL.md`](.agy/INSTALL.md) for pinning, local development, uninstall, and legacy Gemini import.
 
-### Existing Installs
-
-Compound Engineering moved to a root-native, skills-only layout. An existing marketplace install keeps a **cached** marketplace snapshot that still points at the old `plugins/compound-engineering` path, so updating the plugin on its own reads that stale snapshot and leaves you on the previous version. Refresh the cached marketplace **first**, then update the plugin — order matters.
-
-**Claude Code**
-
-```text
-/plugin marketplace update compound-engineering-plugin
-/plugin update compound-engineering
-```
-
-**Codex CLI**
-
-```bash
-codex plugin marketplace upgrade compound-engineering-plugin
-codex plugin add compound-engineering@compound-engineering-plugin
-```
-
-There is no `codex plugin update`; re-running `add` reinstalls from the refreshed snapshot. For a non-default profile, run both commands against the same `CODEX_HOME`.
-
-**Codex App**
-
-Refresh the marketplace from the **Plugins** panel (remove and re-add the `EveryInc/compound-engineering-plugin` marketplace if there is no refresh control), then reinstall **compound-engineering** and restart Codex.
-
-If you configured a host with a direct path or sparse path under `plugins/compound-engineering`, edit or reinstall that source so it points at the repository root with no sparse path.
-
-If a previous Bun-installed copy is still shadowing native plugin skills, run the current cleanup command from a checkout of this repository:
-
-```bash
-git clone https://github.com/EveryInc/compound-engineering-plugin.git /tmp/compound-engineering-plugin-cleanup
-cd /tmp/compound-engineering-plugin-cleanup
-bun install
-bun run cleanup --target all
-```
-
 ---
 
-## Local Development
+## Upgrading an existing install
 
-```bash
-bun install
-bun test
-bun run release:validate
-```
+Compound Engineering moved to a root-native, skills-only layout. If you installed before that move, refresh the cached marketplace **before** updating the plugin — order matters, and `/plugin update` alone keeps you on the old version.
 
-### From your local checkout
-
-For active development, load this checkout directly in the harness you want to test.
-
-**Claude Code**
-
-```bash
-claude --plugin-dir "$PWD"
-```
-
-**Codex App**
-
-In the app's **Add plugin marketplace** form, use this checkout as the source:
-
-| Field | Value |
-| --- | --- |
-| Source | `/path/to/compound-engineering-plugin` |
-| Git ref | current branch, or leave blank for a local folder |
-| Sparse paths | leave blank |
-
-**Codex CLI**
-
-```bash
-codex plugin marketplace add "$PWD"
-codex plugin add compound-engineering@compound-engineering-plugin
-```
-
-Use a separate `CODEX_HOME` when you want to keep local testing isolated from your normal Codex profile. The Codex marketplace entry points at the public Git plugin source so root-shaped plugin repos install correctly; use a temporary marketplace catalog with a `source.url` plus `ref` when testing unpublished plugin-content changes end to end.
-
-**Kimi Code CLI**
-
-Inside Kimi Code CLI:
-
-```text
-/plugins install /path/to/compound-engineering-plugin
-```
-
-To test the local marketplace catalog instead, pass the catalog path:
-
-```text
-/plugins marketplace /path/to/compound-engineering-plugin/.kimi-plugin/marketplace.json
-```
-
-**Cline**
-
-```bash
-/path/to/compound-engineering-plugin/.cline/scripts/install-skills.sh --global
-```
-
-Enable **Settings -> Features -> Enable Skills** in the Cline extension, then start a new task.
-
-**Devin CLI**
-
-```bash
-devin plugins install /path/to/compound-engineering-plugin
-```
-
-Local installs are linked to the checkout rather than copied, so skill edits apply on the next Devin session without reinstalling.
-
-**OpenCode**
-
-```json
-{
-  "plugin": ["/path/to/compound-engineering-plugin"]
-}
-```
-
-Restart OpenCode after changing `opencode.json`.
-
-**Pi**
-
-```bash
-pi -e "$PWD"
-```
-
-**Antigravity CLI (`agy`)**
-
-```bash
-agy plugin install "$PWD"
-agy plugin validate "$PWD"
-```
-
-Or install the bundled `.agy/` entry point:
-
-```bash
-agy plugin install "$PWD/.agy"
-```
-
-See [`.agy/INSTALL.md`](.agy/INSTALL.md) for remote install and pinning examples.
+See **[docs/install/upgrading.md](docs/install/upgrading.md)** for the per-host refresh commands, and for removing the obsolete Codex tool-map block left behind by pre-native Bun installs.
 
 ## Limitations
 
-OpenCode and Pi use native package/plugin loading from this repository. The Bun CLI remains for repository development and converter maintenance, not normal installation.
+OpenCode, Pi, and oh-my-pi (omp) use native package/plugin loading from this repository. The Bun CLI remains for repository development and converter maintenance, not normal installation.
 
 Release versions are owned by release automation. Routine feature PRs should not hand-bump plugin or marketplace manifest versions.
 
@@ -556,15 +422,29 @@ No. Bun is only needed for repo development tasks and converter maintenance.
 
 ### Where do I see all available skills?
 
-The skill inventory is in this README, and the deeper skill catalog is in [`docs/skills/README.md`](docs/skills/README.md). Each skill's authoritative runtime spec lives in `skills/<skill>/SKILL.md`.
+The grouped overview is [above](#skills-at-a-glance); the full catalog with a page per skill is [`docs/guides/README.md`](docs/guides/README.md). Each skill's authoritative runtime spec lives in `skills/<skill>/SKILL.md`.
 
 ### Where is release history?
 
 GitHub Releases are the canonical release-notes surface. The root [`CHANGELOG.md`](CHANGELOG.md) points to that history.
 
+### How do I work on the plugin itself?
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, and [`docs/development.md`](docs/development.md) for loading a local checkout into each harness.
+
+## Documentation
+
+| | |
+|---|---|
+| [Skill catalog](docs/guides/README.md) | A page per skill, and how they chain together |
+| [Configuration](docs/guides/configuration.md) | `.compound-engineering/config.yaml` options |
+| [Installing](#install) · [Upgrading](docs/install/upgrading.md) | Per-host install and refresh |
+| [Contributing](CONTRIBUTING.md) · [Development](docs/development.md) | Working on the plugin itself |
+| [Security](SECURITY.md) · [Privacy](PRIVACY.md) | Reporting and data handling |
+
 ## Contributing
 
-Contributions are welcome. Issues, bug reports, and pull requests all help make this better, and we genuinely appreciate them — bug reports especially.
+Contributions are welcome. Issues, bug reports, and pull requests all help make this better, and we genuinely appreciate them — bug reports especially. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md), which covers setup and what to do before opening a PR.
 
 A note on what to expect: Compound Engineering is opinionated by design. It's maintained by [@kieranklaassen](https://github.com/kieranklaassen) and [@tmchow](https://github.com/tmchow), and its direction reflects a specific point of view about how AI-assisted engineering should work. So while we welcome help, we can't promise to accept every change — some proposals won't fit that vision even when they're good ideas on their own.
 

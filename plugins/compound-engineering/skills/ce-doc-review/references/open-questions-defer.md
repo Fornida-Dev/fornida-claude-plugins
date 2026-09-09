@@ -1,6 +1,6 @@
 # Open Questions Deferral
 
-This reference defines the Defer action's in-doc append mechanic. When the user chooses Defer on a finding (from the walk-through or from the bulk-preview Append-to-Open-Questions path), an entry for that finding appends to a `## Deferred / Open Questions` section at the end of the document under review.
+This reference defines the Defer action's in-doc append mechanic. When the user chooses Defer on a finding (from the walk-through or from the bulk-preview Append-to-Open-Questions path), append it to a visible `Deferred / Open Questions` section in the document's native format.
 
 Interactive mode only. Invoked by `references/walkthrough.md` (per-finding Defer option) and `references/bulk-preview.md` (routing option C Proceed).
 
@@ -10,24 +10,25 @@ Interactive mode only. Invoked by `references/walkthrough.md` (per-finding Defer
 
 ### Step 1: Locate or create the Open Questions section
 
-Scan the document for an existing `## Deferred / Open Questions` heading (case-sensitive match on the full heading text). Behavior by location:
+Scan the document for an existing `Deferred / Open Questions` section, matching its visible heading text exactly. Preserve the document's native format and existing structure; never insert markdown syntax into HTML.
 
-- **Heading present at the end of the document (last `##`-level section):** append new content inside this section at the end.
-- **Heading present mid-document (not the last `##`-level section):** still append inside the existing heading at that location. Do not create a duplicate at the end — the user positioned the section deliberately.
-- **Heading absent:** create `## Deferred / Open Questions` at the end of the document. If the document has a trailing horizontal-rule separator (`---`) or a trailing footer (table, links section), insert the new section above it. If the document has only frontmatter and no body, create the section after the frontmatter block (not at byte 0).
+- **Section present:** append inside it at its existing location. Do not create a duplicate at the end — the user positioned the section deliberately.
+- **Section absent:** create it near the end of the document, before any trailing footer. Use `## Deferred / Open Questions` in markdown and the document's existing section-and-heading pattern in HTML.
 
 ### Step 2: Locate or create the timestamped subsection
 
-Within the Open Questions section, scan for a subsection heading matching the current review date: `### From YYYY-MM-DD review`. Behavior:
+Within the Open Questions section, scan for a visible subsection heading matching the current review date: `From YYYY-MM-DD review`. Use `###` in markdown and the document's existing subsection pattern in HTML. Behavior:
 
 - **Subsection present:** append new entries to it. Multiple Defer actions within a single review session accumulate under the same subsection.
-- **Subsection absent:** create `### From YYYY-MM-DD review` as the last subsection within the Open Questions section. Insert one blank line before the heading for readability.
+- **Subsection absent:** create it as the last subsection within Open Questions, using the native heading pattern described above.
 
 Date format: ISO 8601 calendar date (`YYYY-MM-DD`). If multiple reviews occur on the same document on the same day within the same session, they still share the same subsection. Multi-day same-document reviews get distinct subsections, which is the intended behavior.
 
 ### Step 3: Format and append the entry
 
-Per deferred finding, append a reader-facing bullet-point entry. The entry carries no HTML comment — the markdown rendering contract forbids mixed-in HTML, and every field Step 4's dedup needs is reconstructable from the visible entry text:
+Per deferred finding, append a reader-facing list entry in the document's native format. The entry carries no hidden comment; every field Step 4's dedup needs is reconstructable from visible text:
+
+The example below is markdown. In HTML, mirror the nearest sibling entry's element structure. If no sibling entry exists, use a semantic HTML list with one deferred finding per list item.
 
 ```
 - **{title}** — {section} ({severity}, {reviewer}, confidence {confidence})
@@ -46,17 +47,19 @@ Fields come from the finding's schema:
 
 Do not include `suggested_fix` or the full `evidence` array in the appended entry. Those live in the review run artifact (when applicable) and do not belong in the document's Open Questions section — the entry is a concern summary for the reader returning later, not a full decision packet.
 
+**Render `{title}` and `{why_it_matters}` under the shared rendering floor** (`references/rendering-floor.md`). This entry is persisted for a later reader who no longer has the review's context, so apply the floor's opaque-token policy to all three classes — gloss navigation IDs at first mention, translate mechanism symbols (functions, files, line refs) to their role, drop non-decision provenance — and lead `{why_it_matters}` with the consequence. The floor's full decision-first field order does not apply: a deferred entry is a persisted concern, not an actionable finding, so it carries no Recommendation/Change/Basis. A deferred entry whose only description of a referenced item is a bare identifier of any class is not acceptable.
+
 ### Step 4: Idempotence on compound-key collisions
 
-If an entry with the same compound key already exists under the same `### From YYYY-MM-DD review` subsection, do not append a duplicate. This can happen when:
+If an entry with the same compound key already exists under the same visible `From YYYY-MM-DD review` subsection, regardless of heading syntax, do not append a duplicate. This can happen when:
 
 - The same review session re-routes the same finding to Defer a second time (rare but possible via best-judgment-the-rest after a walk-through Defer)
 - The orchestrator retries after a partial failure
 
-**Compound key for dedup:** `normalize(section) + normalize(title) + why_fingerprint`. All three reconstruct from the visible entry, so no hidden metadata is needed:
+**Compound key for dedup:** `normalize(section) + normalize(title) + why_fingerprint`, computed on both sides from the **rendered entry text that will actually be written** (after Step 3's floor rendering) — not the raw schema fields. Keying on the rendered text is what keeps new-entry keys aligned with parsed existing-entry keys now that the floor rewrites `{title}` and leads `{why_it_matters}` with a paraphrased consequence: an existing persisted entry retains only its rendered bullet, so a new entry must be keyed from the same rendered form it is about to write. Within a session the same finding renders identically against the same document, so a retry or a second Defer recomputes the same key and collides. All three parts reconstruct from the visible entry, so no hidden metadata is needed:
 
-- `normalize(section)` and `normalize(title)` use the same normalization as synthesis step 3.3 dedup (lowercase, strip punctuation, collapse whitespace). For a new finding, compute from the schema; for an existing entry, parse `{title}` (the bold leader) and `{section}` (the text between the em-dash and the opening `(`) out of the rendered bullet.
-- `why_fingerprint` is the first ~120 characters of the entry's `{why_it_matters}` prose, word-boundary-preserving, with any run of whitespace collapsed to a single space. Because why_it_matters renders verbatim in the entry, the same fingerprint recomputes from the visible bullet on any retry or reread. When why_it_matters is empty, fall back to `normalize(section) + normalize(title)` alone.
+- `normalize(section)` and `normalize(title)` use the same normalization as synthesis step 3.3 dedup (lowercase, strip punctuation, collapse whitespace). For a new finding, render the entry per Step 3 first, then normalize the rendered `{title}` (the bold leader) and `{section}`; for an existing entry, parse the same fields out of the rendered bullet. (`{section}` renders unmodified, so it matches either way; `{title}` may be glossed, which is exactly why the new-finding side must normalize the rendered title, not the schema title.)
+- `why_fingerprint` is the first ~120 characters of the entry's **rendered** `{why_it_matters}` prose — the consequence-first text actually written — word-boundary-preserving, with any run of whitespace collapsed to a single space. Because both sides use the rendered prose, the same fingerprint recomputes from the visible bullet on any retry or reread. When why_it_matters is empty, fall back to `normalize(section) + normalize(title)` alone.
 
 Title-only dedup is not sufficient: two different findings in the same document (even on the same review date) can legitimately share a short title if their sections or rationale differ. Using only `{title}` would silently drop one — losing user-visible backlog context. Matching on section and the why-fingerprint keeps distinct findings distinct, and stays close to the R29/R30 matching predicate (`section + title + evidence-substring overlap`) so cross-round and intra-round dedup behave consistently.
 

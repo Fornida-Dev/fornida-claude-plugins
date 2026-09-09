@@ -14,13 +14,13 @@ Use for: `build_error`, `test_failure`, `runtime_error`, `performance_issue`, `d
 ---
 title: [Clear problem title]
 date: [YYYY-MM-DD]
-category: [docs/solutions subdirectory]
+category: [solutions subdirectory]
 module: [Module or area]
 problem_type: [schema enum]
-component: [schema enum]
+component: [corpus value, else schema suggested default]
 symptoms:
   - [Observable symptom 1]
-root_cause: [schema enum]
+root_cause: [corpus value, else schema suggested default]
 resolution_type: [schema enum]
 severity: [schema enum]
 tags: [keyword-one, keyword-two]
@@ -62,10 +62,10 @@ Use for: `best_practice`, `documentation_gap`, `workflow_issue`, `developer_expe
 ---
 title: [Clear, descriptive title]
 date: [YYYY-MM-DD]
-category: [docs/solutions subdirectory]
+category: [solutions subdirectory]
 module: [Module or area]
 problem_type: [schema enum]
-component: [schema enum]
+component: [corpus value, else schema suggested default]
 severity: [schema enum]
 applies_when:
   - [Condition where this applies]

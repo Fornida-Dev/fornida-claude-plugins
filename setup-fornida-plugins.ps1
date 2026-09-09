@@ -59,10 +59,14 @@ $Plugins = @(
     # at .claude-plugin/plugin.json at the plugin root; found nested"). Dev-only, not runtime.
     @{ name = 'compound-engineering'; repo = 'EveryInc/compound-engineering-plugin'; branch = 'main'; subpath = '';
        exclude = @('.agy', '.cursor-plugin', '.codex-plugin', '.kimi-plugin', '.opencode', '.pi', '.agents', '.junie', 'tests') },
-    # 'bin' excluded: caveman ships a top-level bin/ (install.js + lib). claude.ai-hosted
-    # plugins may not ship bin/ executables (added to PATH, invisible to admin approval).
-    # Not needed at runtime — caveman activates via output style / hooks, not bin/.
-    @{ name = 'caveman';              repo = 'JuliusBrussee/caveman';                branch = 'main'; subpath = ''; exclude = @('bin') },
+    # caveman is skip=$true: upstream restructured into a monorepo whose engine/, proxy/,
+    # rewriter/, browse/, mcp/, shrink/, and shared/platform/ are BSL-1.1 (LICENSING.md) —
+    # NOT redistributable in this public repo. Raw re-vendor would ship BSL code = license
+    # violation, plus ~1300 files of non-plugin product. HELD at the last MIT-safe SHA.
+    # To update: manually vendor ONLY the MIT plugin surface (.claude-plugin, src/hooks,
+    # commands, skills, agents, README/LICENSE) — never the engine-linked dirs. 'bin' also
+    # excluded (top-level executables the hosted validator rejects).
+    @{ name = 'caveman';              repo = 'JuliusBrussee/caveman';                branch = 'main'; subpath = ''; exclude = @('bin'); skip = $true },
     # superclaude ships `"agents": "./agents/"` (a directory string) which the Claude plugin
     # validator REJECTS (`agents: Invalid input`) — it requires an explicit file array. RAW
     # re-vendoring reverts the array fix every run, breaking `claude plugin validate` and the
@@ -99,25 +103,28 @@ foreach ($p in $Plugins) {
     if (-not $sha) { Write-Error "Could not resolve SHA for $($p.repo)"; exit 1 }
     Write-Host "  SHA: $sha"
 
-    # 2. Download tarball at SHA + extract
+    # 2. Clone at SHA (Windows-safe). The gh-tarball + tar.exe path chokes on symlinks
+    #    and long paths ("Can't create ... Invalid argument") for CE/superpowers, leaving
+    #    a partial tree. git clone handles both (core.longpaths + symlink-as-file fallback).
+    #    branch HEAD == the $sha just resolved (both from the same branch), so the shallow
+    #    clone content matches the pinned SHA.
     if (Test-Path $tmpRoot) { Remove-Item -Recurse -Force $tmpRoot }
     New-Item -ItemType Directory -Path $tmpRoot | Out-Null
-    $tarball = Join-Path $tmpRoot 'src.tar.gz'
-    gh api "repos/$($p.repo)/tarball/$sha" > $tarball
-    # Build --exclude args: skip foreign-tool mirror dirs (and the symlinks inside
-    # them) so they never reach the working tree. Patterns anchor under the tarball
-    # top dir (entries are <owner>-<repo>-<sha>/<path>).
-    $tarArgs = @('-xzf', $tarball, '-C', $tmpRoot)
+    $clone = Join-Path $tmpRoot 'repo'
+    git -c core.longpaths=true clone --quiet --depth 1 --branch $p.branch "https://github.com/$($p.repo).git" $clone
+    if ($LASTEXITCODE -ne 0) { Write-Error "git clone failed for $($p.repo)"; exit 1 }
+    Remove-Item -Recurse -Force (Join-Path $clone '.git')
+    $srcPath = if ($p.subpath) { Join-Path $clone ($p.subpath -replace '/', [IO.Path]::DirectorySeparatorChar) } else { $clone }
+    if (-not (Test-Path $srcPath)) { Write-Error "Subpath not found in upstream: $($p.subpath)"; exit 1 }
+    # Excludes: remove any file/dir whose name matches, at any depth — matches the old
+    # `tar --exclude=*/<name>` semantics (foreign-tool mirror dirs, tests, bin, upstream).
     if ($p.exclude) {
         foreach ($ex in $p.exclude) {
-            $tarArgs += "--exclude=*/$ex"
-            $tarArgs += "--exclude=*/$ex/*"
+            Get-ChildItem -LiteralPath $srcPath -Recurse -Force -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -eq $ex } |
+                Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
-    tar @tarArgs
-    $extracted = Get-ChildItem -Path $tmpRoot -Directory | Select-Object -First 1
-    $srcPath = if ($p.subpath) { Join-Path $extracted.FullName ($p.subpath -replace '/', [IO.Path]::DirectorySeparatorChar) } else { $extracted.FullName }
-    if (-not (Test-Path $srcPath)) { Write-Error "Subpath not found in upstream: $($p.subpath)"; exit 1 }
 
     # 3. Clean replace plugins/<name>/
     $dest = Join-Path $repoRoot "plugins\$($p.name)"
