@@ -59,13 +59,12 @@ $Plugins = @(
     # at .claude-plugin/plugin.json at the plugin root; found nested"). Dev-only, not runtime.
     @{ name = 'compound-engineering'; repo = 'EveryInc/compound-engineering-plugin'; branch = 'main'; subpath = '';
        exclude = @('.agy', '.cursor-plugin', '.codex-plugin', '.kimi-plugin', '.opencode', '.pi', '.agents', '.junie', 'tests') },
-    # caveman is skip=$true: upstream restructured into a monorepo whose engine/, proxy/,
-    # rewriter/, browse/, mcp/, shrink/, and shared/platform/ are BSL-1.1 (LICENSING.md) —
-    # NOT redistributable in this public repo. Raw re-vendor would ship BSL code = license
-    # violation, plus ~1300 files of non-plugin product. HELD at the last MIT-safe SHA.
-    # To update: manually vendor ONLY the MIT plugin surface (.claude-plugin, src/hooks,
-    # commands, skills, agents, README/LICENSE) — never the engine-linked dirs. 'bin' also
-    # excluded (top-level executables the hosted validator rejects).
+    # caveman is skip=$true: upstream restructured into a ~1300-file monorepo (Go proxy
+    # engine, packages, evals, dist...). Only a small slice is the Claude plugin; the
+    # engine/proxy/rewriter/browse/mcp/shrink/shared-platform dirs are the product (and
+    # BSL-1.1) — irrelevant to the plugin. A RAW re-vendor would drag all of it in, so it's
+    # skipped from the automated run. Update caveman MANUALLY by cloning and copying ONLY
+    # the MIT plugin surface: .claude-plugin, src, commands, skills, agents (+ LICENSE docs).
     @{ name = 'caveman';              repo = 'JuliusBrussee/caveman';                branch = 'main'; subpath = ''; exclude = @('bin'); skip = $true },
     # superclaude ships `"agents": "./agents/"` (a directory string) which the Claude plugin
     # validator REJECTS (`agents: Invalid input`) — it requires an explicit file array. RAW

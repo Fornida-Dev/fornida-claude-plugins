@@ -1,7 +1,7 @@
 # Vendored plugin provenance (upstream + pinned SHA)
 
 - compound-engineering  <=  github.com/EveryInc/compound-engineering-plugin (repo root; RAW, foreign-tool mirror dirs + tests/ excluded) @ b36047e1b4b2123df2f3529bf04b5f2a7c5f84e4
-- caveman  <=  github.com/JuliusBrussee/caveman  @ 0d95a81d35a9f2d123a5e9430d1cfc43d55f1bb0  (HELD — upstream became a monorepo with BSL-1.1 engine/proxy/rewriter/browse/mcp/shrink/shared-platform; raw redistribution in this public repo is a license violation. Update needs a curated MIT-only subset, see script skip note.)
+- caveman  <=  github.com/JuliusBrussee/caveman  @ 15581d14007fd01fb3f132016741962f34936ca2  (curated: only the MIT plugin surface — .claude-plugin/ src/ commands/ skills/ agents/ + LICENSE docs. Upstream is now a ~1300-file monorepo; the engine/proxy/rewriter/browse/mcp/shrink/shared-platform product dirs are excluded — not needed for the plugin, and BSL-1.1. skip=$true in the script so the RAW automated re-vendor can't re-bloat it; update manually via the curated clone+copy.)
 - superclaude  <=  github.com/SuperClaude-Org/SuperClaude_Framework (/plugins/superclaude) @ 1b81e51db955126ec8983769b96dec575d730c05
 - github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ 517b2fcd1b60fa2181ac52dcf8492361ba341180
 - superpowers  <=  github.com/obra/superpowers  @ b36e0829c6d0140e93cfef2ca599b1b07d4a7797
