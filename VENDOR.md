@@ -19,6 +19,14 @@ upstream with no overlay to clobber or re-apply.
 (Earlier versions overlaid a forced output style + hook-neutralized `plugin.json`
 onto caveman here; that was moved to the kit so this repo stays a clean passthrough.)
 
+### Upstream backports (cleared by the next re-vendor)
+
+- **caveman `src/hooks/caveman-mode-tracker.js`** (2026-10-15): upstream's 2s stdin
+  watchdog, copied verbatim from upstream `d262ab3` (2026-10-13). Without it the
+  UserPromptSubmit hook ("Tracking caveman mode...") waited out the full 30s hook
+  timeout whenever the prompt payload stalled. `checksums.sha256` updated to match.
+  Not a Fornida edit: the next curated re-vendor brings the same lines and drops this note.
+
 ## Known limitation — compound-engineering on Windows
 
 Upstream compound-engineering **restructured**: the plugin now lives at the repo
