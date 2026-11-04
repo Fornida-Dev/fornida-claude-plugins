@@ -32,7 +32,7 @@ ui-check directly:
     node .../ui-check.mjs http://localhost:3001/reports --compare http://localhost:3000/reports
 
 Requirements: Node 20+, Playwright (`playwright` or `playwright-core`) resolvable from the project or globally, and
-Chromium, Chrome or Edge. `UI_CHECK_BROWSER=<path>` forces a browser binary.
+Chromium, Chrome or Edge.
 
 Data handling: run against local or dev/test environments only, never production with client data. Screenshots and
 reports are written to a temp folder (or `--out`) and should never be committed.

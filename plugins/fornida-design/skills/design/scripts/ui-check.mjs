@@ -82,7 +82,6 @@ function loadPlaywright() {
 
 async function launch(pw) {
   const tries = [];
-  if (process.env.UI_CHECK_BROWSER) tries.push({ executablePath: process.env.UI_CHECK_BROWSER });
   tries.push({}, { channel: "chrome" }, { channel: "msedge" });
   if (fs.existsSync("/opt/pw-browsers/chromium")) tries.push({ executablePath: "/opt/pw-browsers/chromium" });
   let last;
@@ -90,7 +89,7 @@ async function launch(pw) {
     try { return await pw.chromium.launch({ headless: true, ...t }); } catch (e) { last = e; }
   }
   throw new Error("could not start a browser (tried Playwright Chromium, Chrome, Edge). " +
-    "Install one: `npx playwright install chromium`, or set UI_CHECK_BROWSER to a Chrome/Edge path.\n" + (last && last.message.split("\n")[0]));
+    "Install Chrome or Edge, or run `npx playwright install chromium` in the project.\n" + (last && last.message.split("\n")[0]));
 }
 
 // ---------------------------------------------------------------- in-page collector
