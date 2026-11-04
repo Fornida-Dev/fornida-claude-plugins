@@ -4,7 +4,7 @@
 Use as a review checklist. Fix [High] first. A rule id in backticks means ui-check reports it; everything else needs a manual check (keyboard, click-through, slow network, empty data). Source "Critical" rows are tagged [High].
 
 ## Navigation
-- **Smooth scroll** [High] — Do: `scroll-behavior: smooth` on html, off under reduced motion / Don't: jump to anchors with no transition.
+- **Smooth scroll** [Low] — Do: `scroll-behavior: smooth` on html, off under reduced motion / Don't: jump to anchors with no transition.
 - **Sticky nav** [Medium] — Do: offset content by the nav height / Don't: let the nav cover the first section. `overlap`
 - **Active state** [Medium] — Do: mark the current nav item (color plus underline or weight) / Don't: give no sign of location.
 - **Back button** [High] — Do: keep browser history working in SPAs / Don't: break back.
@@ -38,7 +38,7 @@ Use as a review checklist. Fix [High] first. A rule id in backticks means ui-che
 - **Touch spacing** [Medium] — Do: at least 8px between targets on touch screens / Don't: pack clickable elements tightly. `tap-target`
 
 ## Interaction
-- **Focus states** [High] — Do: visible focus ring on every control, including in modals / Don't: remove outline without replacement. `focus-invisible`
+- **Focus states** [High] — Do: visible focus ring on every control, including in modals / Don't: remove outline without replacement. `focus-invisible` (detects only that some visible change happens; judge ring strength in source)
 - **Hover states** [Medium] — Do: pointer cursor plus a subtle change / Don't: no hover feedback on clickable elements.
 - **Active states** [Medium] — Do: show a pressed state / Don't: no feedback while interacting.
 - **Disabled states** [Medium] — Do: reduce opacity, change cursor / Don't: make disabled look enabled.
@@ -48,8 +48,8 @@ Use as a review checklist. Fix [High] first. A rule id in backticks means ui-che
 - **Confirmation dialogs** [High] — Do: confirm deletes and irreversible actions / Don't: delete on one click.
 
 ## Accessibility
-- **Color contrast** [High] — Do: 4.5:1 minimum for normal text / Don't: low-contrast text. `a11y/color-contrast`
-- **Color only** [High] — Do: add icon or text to color / Don't: red/green alone for error/success. `a11y/link-in-text-block`
+- **Color contrast** [High] — Do: 4.5:1 for body text; 3:1 for large text (>=24px, or >=18.66px bold) and UI components / Don't: low-contrast text. `a11y/color-contrast` `a11y/color-contrast-unverified`
+- **Color only** [High] — Do: add icon or text to color / Don't: red/green alone for error/success. Check status colors by hand; `a11y/link-in-text-block` covers only links distinguished from body text by color.
 - **Alt text** [High] — Do: describe meaningful images / Don't: missing alt. `a11y/image-alt`
 - **Heading hierarchy** [Medium] — Do: sequential h1-h6 / Don't: skip levels or pick headings for size. `a11y/heading-order`
 - **ARIA labels** [High] — Do: `aria-label` on icon-only buttons / Don't: unlabeled icon buttons. `a11y/button-name`
@@ -61,9 +61,9 @@ Use as a review checklist. Fix [High] first. A rule id in backticks means ui-che
 - **Motion sensitivity** [High] — Do: honor reduced motion; show the final state without parallax / Don't: scroll-jacking.
 - **Focus not obscured (AA)** [High] — Do: `scroll-padding` for sticky UI; move or dismiss overlays / Don't: let headers, banners or chat widgets cover focus.
 - **Focus not obscured (AAA)** [Medium] — Do: keep the whole focused control visible / Don't: call this AAA rule an AA requirement.
-- **Focus appearance (AAA)** [Medium] — Do: 2px-perimeter indicator at 3:1 contrast / Don't: thin low-contrast outline. `focus-invisible`
+- **Focus appearance (AAA)** [Medium] — Do: 2px-perimeter indicator at 3:1 contrast / Don't: thin low-contrast outline. Not measured: check the focus style in source.
 - **Dragging** [High] — Do: offer buttons, menus or keyboard alternatives / Don't: make drag the only way to reorder or resize.
-- **Target size** [High] — Do: at least 24x24 CSS px or equivalent spacing / Don't: treat native 44pt/48dp as the web rule. `tap-target`
+- **Target size** [High] — Do: at least 24x24 CSS px, or the WCAG 2.5.8 spacing exception; 44x44 on touch / Don't: tiny icon-only hit areas. `tap-target`
 - **Consistent help** [Medium] — Do: keep help and contact in the same place on every page / Don't: move it around.
 - **Text reflow and spacing** [High] — Do: fluid sizes, content-driven height, unitless line-height / Don't: fixed boxes that clip text. `truncation` `overflow-x`
 - **Compact controls** [High] — Do: use a `<button>` exposing pressed/selected state / Don't: clickable div, or the only action shown on hover.
@@ -105,7 +105,7 @@ Use as a review checklist. Fix [High] first. A rule id in backticks means ui-che
 - **Tables** [Medium] — Do: scroll container or card layout on small screens / Don't: wide tables breaking the page. `overflow-x`
 
 ## Typography
-- **Line height** [Medium] — Do: 1.5-1.75 for body text / Don't: cramped or excessive. `line-height`
+- **Line height** [Medium] — Do: 1.4-1.6 for body text / Don't: cramped or excessive. `line-height`
 - **Line length** [Medium] — Do: 65-75 characters / Don't: full-width text on large screens. `line-length`
 - **Font size scale** [Medium] — Do: consistent modular scale / Don't: random sizes. `too-many` `near-duplicate`
 - **Font loading shift** [Medium] — Do: size-matched fallback font / Don't: layout shift when fonts load.
@@ -118,7 +118,7 @@ Use as a review checklist. Fix [High] first. A rule id in backticks means ui-che
 - **Empty states** [Medium] — Do: helpful message plus an action / Don't: blank screens.
 - **Error recovery** [Medium] — Do: clear next steps / Don't: errors with no way out.
 - **Progress** [Medium] — Do: steps or a progress bar / Don't: no sign of progress.
-- **Toasts** [Medium] — Do: auto-dismiss after 3-5 s / Don't: toasts that never leave.
+- **Toasts** [Medium] — Do: auto-dismiss success and info after 3-5 s; keep error toasts until dismissed / Don't: auto-dismiss errors.
 - **Confirmation messages** [Medium] — Do: brief success message / Don't: silent success.
 
 ## Content
@@ -136,8 +136,8 @@ Use as a review checklist. Fix [High] first. A rule id in backticks means ui-che
 - **No results** [Medium] — Do: "No results" plus suggestions / Don't: blank screen or bare "0 results".
 - **Bulk actions** [Low] — Do: multi-select and bulk edit / Don't: single-row actions only.
 
-## AI features
-- **Disclosure** [High] — Do: label AI-generated content / Don't: present it as human.
+## AI features (only when the product itself has them)
+- **Disclosure** [High] — Do: label content generated by the product's AI features / Don't: present it as human. Not about how the code was written.
 - **Streaming** [Medium] — Do: stream responses as they arrive / Don't: a spinner for 10 s or more.
 - **Feedback loop** [Low] — Do: thumbs up/down or Regenerate / Don't: static output only.
 

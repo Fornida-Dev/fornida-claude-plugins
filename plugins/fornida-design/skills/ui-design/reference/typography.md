@@ -12,7 +12,7 @@ Type carries information, hierarchy, and voice. Improve it inside the existing i
     node "<skill-dir>/scripts/ui-check.mjs" <url> --inventory
     node "<skill-dir>/scripts/ui-check.mjs" <url> --viewports desktop,mobile --out <dir>
 
-The inventory lists families, sizes, weights, and line-heights in use with counts. Rules that matter: `text-size`, `line-height`, `line-length`, `near-duplicate` and `too-many` (font sizes), `truncation`, `overflow-x`, `a11y/color-contrast`. For "doesn't match", add `--compare <reference-url>` and read `parity/style`.
+The inventory lists families, sizes, weights, and line-heights in use with counts. Rules that matter: `text-size`, `line-height`, `line-length`, `near-duplicate` and `too-many` (font sizes), `truncation`, `overflow-x`, `a11y/color-contrast`. For "doesn't match", run `--compare <reference-url>` as a separate run and read `[parity/style]` (match.md).
 
 ## Diagnose
 
@@ -29,9 +29,9 @@ Answer each with a selector, file, or measured value:
 
 Define roles as tokens in DESIGN.md and fix the tokens, not individual elements.
 
-- **Scale.** Operate: ratio 1.125–1.2, fixed rem, 5–6 sizes, for example 12 / 14 / 16 / 18 / 20 / 24. Persuade: ratio 1.25–1.333, display may use `clamp()`, max 6rem. Merge near-duplicate sizes to the nearest step.
+- **Scale.** Operate: ratio 1.125–1.2, fixed rem, 5–8 sizes (ui-check flags more than 8), for example 12 / 14 / 16 / 18 / 20 / 24. Persuade: ratio 1.25–1.333, display may use `clamp()`, max 6rem. Merge near-duplicate sizes to the nearest step.
 - **Body.** 16px for reading surfaces; 14–16px for Operate UI and tables; nothing under 12px, and 12px only for metadata.
-- **Line-height.** Body 1.5 (1.4 for dense UI, up to 1.7 for long reading). Headings 1.1–1.25. Wider lines need more leading.
+- **Line-height.** Body 1.4–1.6 (1.4 for dense UI, 1.6 for long reading). Headings 1.1–1.25. Wider lines need more leading.
 - **Measure.** Prose 65–75ch via `max-width: 70ch` on the text container. Tables and compact UI may run wider.
 - **Weights.** Usually 400, 500 or 600, and 700. Hierarchy uses size, weight, and color together; size alone needs big jumps.
 - **Families.** One sans for Operate. Persuade may pair one display face with one text face. Mono only for code, IDs, and aligned figures.
@@ -47,4 +47,4 @@ Do not add a second family without a job only it can do, and do not make type de
 
 ## Verify
 
-Re-run both commands. Done = `text-size`, `line-height`, `line-length`, and font-size `near-duplicate` and `too-many` are clean, or each remaining finding is explained (for example, a data table intentionally over 90 characters). The inventory should show the token scale and nothing else. Stop after 3 fix and recheck cycles and report. Give the human the `--out` screenshots to confirm the hierarchy reads right.
+Re-run both commands. Done = `text-size`, `line-height`, `line-length`, and font-size `near-duplicate` and `too-many` are clean, or each remaining finding is explained (for example, a data table intentionally over ~95 characters per line). The inventory should show the token scale and nothing else. Stop after 3 fix and recheck cycles and report. Give the human the `--out` screenshots to confirm the hierarchy reads right.

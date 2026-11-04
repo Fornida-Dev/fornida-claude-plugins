@@ -6,7 +6,7 @@ under its own license; full texts are in `LICENSES/`. All may be used commercial
 ## Impeccable (Apache-2.0)
 
 - Source: https://github.com/pbakaus/impeccable at commit 5af4319c4e7a7ee3e5e2b9fe899bcfb21c6190cb. Copyright Paul Bakaus.
-- Used: design method and playbook content, adapted in `skills/design/reference/` (craft-floor, modes, layout,
+- Used: design method and playbook content, adapted in `skills/ui-design/reference/` (craft-floor, modes, layout,
   typography, color, polish, critique, tone, clarify, responsive, harden). Each such file starts with a note naming
   the source.
 - Modified by Fornida (2026-11): condensed and rewritten; the launcher, binary detector, live mode, hooks, telemetry and
@@ -20,14 +20,15 @@ under its own license; full texts are in `LICENSES/`. All may be used commercial
 
 - Source: https://github.com/nextlevelbuilder/ui-ux-pro-max-skill at commit ccce51cba388476d4f403091ddb91636d5cd9fed.
   Copyright (c) 2024 Next Level Builder.
-- Used: `ux-guidelines.csv`, filtered to web and condensed into `skills/design/reference/ux-guidelines.md`.
+- Used: `ux-guidelines.csv`, filtered to web and condensed into `skills/ui-design/reference/ux-guidelines.md`.
 - License: `LICENSES/ui-ux-pro-max-skill-MIT.txt`.
 
 ## axe-core (MPL-2.0), bundled unmodified
 
-- `skills/design/vendor/axe.min.js` is axe-core 4.14.0 from npm (integrity
+- `skills/ui-design/vendor/axe.min.js` is axe-core 4.14.0 from npm (integrity
   sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==), unmodified.
-  Copyright Deque Systems, Inc. Source: https://github.com/dequelabs/axe-core.
+  Copyright Deque Systems, Inc. Source: https://github.com/dequelabs/axe-core. Source code of the bundled version
+  (MPL-2.0 Section 3.2): https://github.com/dequelabs/axe-core/tree/v4.14.0.
 - License: `LICENSES/axe-core-MPL-2.0.txt` (and its third-party notices, `LICENSES/axe-core-3RD-PARTY.txt`).
 
 ## Ideas, no code

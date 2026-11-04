@@ -14,7 +14,9 @@ Run the full set once, then fix in batches:
     node "<skill-dir>/scripts/ui-check.mjs" <url> [more urls] --viewports desktop,tablet,mobile --out <dir>
     node "<skill-dir>/scripts/ui-check.mjs" <url> --scheme dark --out <dir>       # if dark mode ships
     node "<skill-dir>/scripts/ui-check.mjs" <url> --inventory
-    node "<skill-dir>/scripts/ui-check.mjs" <url> --compare <sibling-page-url>    # for "doesn't match"
+    node "<skill-dir>/scripts/ui-check.mjs" <url> --compare <sibling-page-url> --scope "<shared component>"   # for "doesn't match"
+
+The compare is a separate run. A sibling page has different content, so compare only the shared component (header, table, form) with `--scope`. `--scheme dark` covers `prefers-color-scheme` only; a class-based theme needs `--steps`. Run the multi-viewport check in the background.
 
 Every rule matters here. Group findings by rule before fixing; many share one cause.
 

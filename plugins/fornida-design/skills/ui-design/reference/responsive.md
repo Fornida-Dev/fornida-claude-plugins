@@ -13,15 +13,15 @@ Adapting is rethinking for the context, not shrinking pixels. Operate apps are m
 node "<skill-dir>/scripts/ui-check.mjs" <url> --viewports desktop,tablet,mobile --out <scratch>/responsive
 ```
 
-Add `--viewports 320x640` for the smallest phones and `1920x1080` if wide screens matter. Use `--wait-for "<selector>"` when data loads late, or the empty layout will pass.
+Add `--viewports 320x640` for the smallest phones and `1920x1080` if wide screens matter. Use `--wait-for "<selector>"` when data loads late, or the empty layout will pass. Three viewports take a while: run the check in the background.
 
 Rules that matter here:
 - `overflow-x`: page or element wider than the viewport. Always P0 on mobile.
-- `tap-target`: under 24x24 fails; under 44x44 on mobile is advisory, treat it as required for primary actions.
+- `tap-target`: under 24x24 warns unless it meets the WCAG 2.5.8 spacing exception (then info). 44x44 is advisory on touch (viewports 480px wide or less); treat it as required for primary actions.
 - `truncation`: content clipped by `overflow: hidden`. Intentional ellipsis is marked; the rest is lost content.
 - `overlap`: siblings colliding after reflow.
-- `text-size`: body under 12px fails, under 14px warns. Use 16px body on mobile; inputs under 16px make iOS zoom in.
-- `line-length`: over ~90 characters on desktop means a missing max-width.
+- `text-size`: text under 12px. Use 16px body on mobile; inputs under 16px make iOS zoom in.
+- `line-length`: text over 120 characters running over ~95 characters per line on desktop means a missing max-width.
 
 ## Diagnose
 
@@ -40,7 +40,7 @@ Fix layout primitives and tokens first (container, grid, spacing scale in DESIGN
 
 **Breakpoints and layout**
 - Mobile-first: base styles for narrow, `min-width` queries add complexity. Three breakpoints usually suffice: 640, 768, 1024px, or where content breaks.
-- Use `clamp()` for type and spacing that should scale smoothly, e.g. `font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2.25rem)`.
+- Persuade surfaces only: `clamp()` for display type and section spacing, e.g. `font-size: clamp(1.5rem, 1.2rem + 1.5vw, 2.25rem)`. Operate surfaces keep fixed rem steps (modes.md).
 - Use container queries for components that live in panels of varying width (cards, KPI tiles).
 - Cap reading width: `max-width: 70ch` for text, `max-width` on the app shell so it does not stretch across 4K.
 

@@ -21,14 +21,14 @@ Read the inventory as the noise budget. Targets for a coherent system:
 
 | Measure | Busy if | Bland if |
 |---|---|---|
-| Distinct font sizes | > 6 | <= 3 with steps under 1.2x |
+| Distinct font sizes | > 8 | <= 3 with steps under 1.2x |
 | Font weights | > 3 | 1 |
 | Non-neutral colors | > 2 accents + status | 0 accents used |
 | Radii | > 3 | n/a |
 | Shadows | > 2 levels | n/a |
 | Spacing values off the base | any | n/a |
 
-Rules that confirm busy: `too-many`, `near-duplicate`, `spacing-outlier`, `off-scale`, `nested-card`, `gradient-text`, `accent-border`. Bland rarely trips a rule; the evidence is the inventory (sizes bunched together, one weight, accent unused) plus the screenshot.
+Rules that confirm busy: `too-many`, `near-duplicate`, `spacing-outlier`, `off-scale`, `nested-card`, `gradient-text`, `accent-border`. Bland rarely trips a rule; the evidence is the inventory (sizes bunched together, one weight, accent unused). Your own read of a screenshot is low-confidence: use it only to choose where to look, and back every claim with an inventory number or a source fact.
 
 ## Diagnose
 
@@ -50,7 +50,7 @@ Bland, find what is missing:
 Start at tokens and containers in DESIGN.md and the shared CSS, then components. One token change beats 30 local overrides.
 
 **Quieter**
-- Collapse the type scale to 4-5 sizes, 2-3 weights. Drop 700 to 600 or 500 outside the page title.
+- Collapse the type scale to 5-6 sizes (8 at most), 2-3 weights. Drop 700 to 600 or 500 outside the page title.
 - Accent to 10% of the surface: primary action, active nav, key figures. Everything else neutral.
 - Desaturate accents to 70-85% saturation. Merge near-duplicate colors to one token.
 - Pick one container signal per box: border or shadow or tinted background, not all three. Remove nested cards; use spacing.

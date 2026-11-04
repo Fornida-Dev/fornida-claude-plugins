@@ -13,7 +13,9 @@ Color encodes hierarchy, action, state, and atmosphere. Keep confirmed brand col
     node "<skill-dir>/scripts/ui-check.mjs" <url> --out <dir>
     node "<skill-dir>/scripts/ui-check.mjs" <url> --scheme dark --out <dir>
 
-Rules that matter: `a11y/color-contrast`, `near-duplicate` and `too-many` (colors), `focus-invisible`, `gradient-text`, `accent-border`. The inventory gives every text, background, and border color with usage counts. For "doesn't match", add `--compare <reference-url>` and read `parity/style`.
+`--scheme dark` only emulates `prefers-color-scheme`. A class-based theme (`.dark`, next-themes) needs `--steps` with `addClass` or `localStorage` instead.
+
+Rules that matter: `a11y/color-contrast`, `a11y/color-contrast-unverified`, `near-duplicate` and `too-many` (colors), `focus-invisible`, `gradient-text`, `accent-border`. The inventory gives every text, background, and border color with usage counts. For "doesn't match", run `--compare <reference-url>` as a separate run and read `[parity/style]` (match.md).
 
 ## Diagnose
 
@@ -44,10 +46,10 @@ Rules that matter: `a11y/color-contrast`, `near-duplicate` and `too-many` (color
 | Content | Minimum |
 |---|---|
 | Body and placeholder text | 4.5:1 |
-| Large text (≥24px, or ≥18.7px bold) | 3:1 |
-| Icons, control borders, focus indicators | 3:1 |
+| Large text (≥24px, or ≥18.66px bold) | 3:1 |
+| UI components: icons, control borders, focus indicators | 3:1 |
 
-Check every state: hover, disabled, selected, error, text over images, and both themes. Disabled text is exempt but should still be legible.
+Check every state and both themes. Hover, disabled, selected and error states are only measured when `--steps` puts the page in that state (`hover`, `click`, `focus`). Text over images or gradients shows as `a11y/color-contrast-unverified`: check it by hand against the lightest and darkest area behind the text, and say so. Disabled text is exempt but should still be legible.
 
 **Secondary text on colored surfaces.** Never use generic gray on a colored or tinted surface; it reads muddy and often fails contrast. Derive it from the surface hue (same hue, lower chroma, shifted lightness) or use the foreground color at reduced lightness, then measure it at ≥4.5:1.
 

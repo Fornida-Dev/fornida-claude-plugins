@@ -22,7 +22,7 @@ Compare families, size count, scale steps, and color count against the mode's nu
 
 The tool should disappear into the task. A user who knows this category should trust every control on sight. The failure is not plainness; it is strangeness: decorated buttons, odd form controls, display fonts on labels, invented affordances.
 
-- **Type:** one sans family. Fixed rem scale, no fluid `clamp()` headings. Ratio 1.125–1.2 between steps, about 5–6 sizes total (for example 12, 14, 16, 18, 20, 24). Body and table text 14–16px. Weights 400, 500, 600.
+- **Type:** one sans family. Fixed rem scale, no fluid `clamp()` headings. Ratio 1.125–1.2 between steps, 5–8 sizes total (for example 12, 14, 16, 18, 20, 24). Body and table text 14–16px. Weights 400, 500, 600.
 - **Color:** restrained. Neutral surfaces plus one accent used only for primary action, current selection, and focus. A second neutral layer (slightly cooler or warmer) for sidebar, toolbar, panels. Semantic colors (success, warning, error, info) carry state only, always with text or an icon.
 - **Layout:** standard shells: top bar plus side nav, breadcrumbs, tabs. Density is allowed: many rows, many labels. Responsive changes are structural (sidebar collapses, table scrolls inside its own container or becomes a list), not fluid type.
 - **Components:** each interactive one has default, hover, focus, active, disabled, loading, error. Skeletons for loading, not a spinner in the middle of content. Empty states say what goes here and how to add it. One button shape, one form-control style, one icon set across every screen; if Save looks different in two places, one is wrong.
@@ -45,7 +45,7 @@ The first viewport must state the offer in one line, show the primary action in 
 
 The column stays calm; the frame (header, nav rail, headings, code blocks, tables) carries the brand.
 
-- Body 16–18px, line-height 1.5–1.7, measure 65–75ch.
+- Body 16–18px, line-height 1.4–1.6, measure 65–75ch.
 - Clear heading hierarchy, visible contents or sidebar nav, next and previous links.
 - Code, tables, and callouts in standard forms. Mono only for code.
 

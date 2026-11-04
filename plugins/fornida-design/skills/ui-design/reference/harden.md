@@ -9,10 +9,10 @@ A screen that only works with perfect data is not done.
 
 ## Measure
 
-Render each state, then measure it. Get there with fixture data, a query param, a feature flag, or by blocking the API in the dev server; do not ship test hooks to production.
+Render each state, then measure it. Get there with fixture data, a query param, a feature flag, or by blocking the API in the dev server; do not ship test hooks to production. Quote any URL containing `?` or `&`. States reached by interaction (open dialog, submitted form) need `--steps`.
 
 ```
-node "<skill-dir>/scripts/ui-check.mjs" <url>?state=empty <url>?state=error <url>?state=long --viewports desktop,mobile --out <scratch>/harden
+node "<skill-dir>/scripts/ui-check.mjs" "<url>?state=empty" "<url>?state=error" "<url>?state=long" --viewports desktop,mobile --out <scratch>/harden
 node "<skill-dir>/scripts/ui-check.mjs" <url> --wait-for "<loaded-content selector>"
 ```
 

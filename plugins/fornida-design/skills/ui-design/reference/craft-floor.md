@@ -17,23 +17,23 @@ Add `--scheme dark` if the app ships dark mode and `--scope "<selector>"` to lim
 
 | Check | Threshold | Rule |
 |---|---|---|
-| Contrast | body and placeholder ≥4.5:1; large text (≥24px, or ≥18.7px bold), icons, control borders, focus ≥3:1 | a11y/color-contrast |
+| Contrast | body and placeholder ≥4.5:1; large text (≥24px, or ≥18.66px bold) and UI components (icons, control borders, focus indicators) ≥3:1 | a11y/color-contrast |
 | Text size | body ≥14px Operate, ≥16px Read and Persuade; nothing under 12px | text-size |
 | Leading | multi-line body 1.4–1.6 | line-height |
-| Measure | prose 65–75ch | line-length |
+| Measure | prose 65–75ch (the rule flags text over 120 characters at over ~95 characters per line) | line-length |
 | Spacing | every padding, margin, gap on the 4px scale; sibling gaps consistent | off-scale, spacing-outlier |
-| Hierarchy space | more space above a heading than below it (read computed margins) | spacing-outlier |
-| System drift | no near-identical colors, sizes, radii | near-duplicate, too-many |
+| System drift | no near-identical colors, sizes, radii; 5–8 font sizes | near-duplicate, too-many |
 | Fit | no horizontal scroll, overlap, or unintended clipping at desktop and mobile | overflow-x, overlap, truncation |
-| Targets | ≥24x24; 44x44 on touch | tap-target |
-| Focus | every focusable element shows a visible ring | focus-invisible |
+| Targets | ≥24x24 (or the WCAG 2.5.8 spacing exception); 44x44 on touch | tap-target |
+| Focus | keyboard focus visibly changes every focusable element (the rule detects any change; aim for a clear ring) | focus-invisible, focus-limit |
 | Media | no broken or distorted images | broken-image, stretched-image |
 | Runtime | no console errors or failed requests | console-error, failed-request |
 | Semantics | names, labels, roles | a11y/* |
 
 Not measured; check in source and say how you checked:
 
-- **States:** default, hover, focus, active, disabled, loading, error, empty.
+- **Hierarchy space:** more space above a heading than below it. Check the heading margins or spacing classes in source; no rule measures this.
+- **States:** default, hover, focus, active, disabled, loading, error, empty. To measure one, reach it with `--steps`.
 - **Depth:** shadows have a y-offset and soft blur. No zero-offset colored glow.
 - **Copy:** buttons name the action; errors name the problem and the fix.
 - **Browser surfaces:** selection color, focus ring, link underline offset, and `font-variant-numeric: tabular-nums` in numeric columns all come from the palette, not browser defaults.
@@ -48,7 +48,7 @@ Generic defaults. Do not use them unless DESIGN.md or the request explicitly ask
 - Cards inside cards (nested-card). Use spacing or a divider for inner grouping.
 - A grid of identical icon + heading + text cards as the page structure.
 - A big-number tile with no unit, period, or comparison. A number that matters shows its trend or target.
-- An eyebrow or kicker label above a heading. Always refused.
+- An eyebrow or kicker label above a heading.
 - Section numbers (01 / 02 / 03) unless the order carries meaning.
 - A modal for a task that needs no interruption. Prefer inline or a side panel.
 - Glass and blur as decoration; hard offset shadows (`4px 4px 0`).

@@ -13,7 +13,7 @@ Use when the user asks "what's wrong with this", "review the design", "it looks 
 
 ## Assessment A: design review (sub-agent)
 
-Read the relevant source files and look at the rendered page (screenshot or browser). Return:
+Read the relevant source files and look at the rendered page (screenshot or browser). Judgment from a screenshot is low-confidence evidence: an issue based on how the page looks counts only once a measurement (B) or a source fact (a value, a class, a missing state) confirms it. Return:
 
 1. **Nielsen heuristics, 0-4 each**: 0 = absent/broken, 1 = mostly failing, 2 = partial with major gaps, 3 = good with minor gaps, 4 = excellent, nothing to add. Most real interfaces total 20-32/40. On Persuade pages, 7 and 10 may be `n/a`; total out of 4 x scored count.
    1 System status (loading, save confirmations, active nav) · 2 Real-world language (no jargon) · 3 User control (cancel, undo, clear filters, Esc) · 4 Consistency (same action, same look and word) · 5 Error prevention (confirm destructive, constrained inputs) · 6 Recognition over recall (visible options, labeled icons) · 7 Efficiency (keyboard, bulk actions) · 8 Minimalist design (nothing competes with the main task) · 9 Error recovery (says what failed and how to fix, keeps input) · 10 Help (inline hints at decision points)
@@ -28,7 +28,7 @@ node "<skill-dir>/scripts/ui-check.mjs" <url> --viewports desktop,mobile --out <
 node "<skill-dir>/scripts/ui-check.mjs" <url> --inventory
 ```
 
-Add `--scheme dark` if the app supports dark mode, and `--scope "<selector>"` if the user named one region. Return counts per rule, each finding's selector, source snippet and measured numbers, the inventory (distinct font sizes, colors, radii, spacing values, near-duplicates), and any findings it judges false positives with the reason. Exit 1 = tool error: report it, do not treat it as clean.
+Add `--scheme dark` if the app supports dark mode (`--steps` for a class-based theme), and `--scope "<selector>"` if the user named one region. Return counts per rule, each finding's selector, source snippet and measured numbers, the inventory (distinct font sizes, colors, radii, spacing values, near-duplicates), and any findings it judges false positives with the reason. Exit 1 = tool error: report it, do not treat it as clean.
 
 ## Synthesis (parent, after both return)
 
@@ -36,7 +36,7 @@ Do not concatenate. Map each A issue to B evidence:
 
 - **Agreed**: A flagged it and a rule measured it. Highest confidence.
 - **Measurement only**: rule findings A missed (contrast, off-scale spacing, near-duplicate colors, tap targets). Review is weak at these; trust the numbers.
-- **Review only**: judgment issues no rule covers (wrong hierarchy, confusing flow, unclear copy). Keep them, but state the verify step as a re-screenshot or a specific check.
+- **Review only**: judgment issues no rule covers (wrong hierarchy, confusing flow, unclear copy). Keep them only with a source fact behind them, and state the verify step as a specific source check. A screenshot impression with nothing behind it is marked `unconfirmed`.
 - **False positives**: rule hits that are intentional (marked ellipsis, decorative overlap). Name them so nobody "fixes" them.
 
 Severity: **P0** blocks the task (overflow hiding a control, contrast failure on primary text, broken flow). **P1** causes real difficulty; a user would ask for help. **P2** annoyance with a workaround. **P3** polish. A rule with 20+ hits on drift (off-scale, near-duplicate, too-many) is usually one token fix, rank it by impact not count.
@@ -53,12 +53,12 @@ What works: <2-3 lines>
 Fix list
 [P0] <problem> - <element/selector>
      Change: <concrete edit: token, value, file>
-     Proves fixed: <ui-check rule> clean at <viewport>   (or: re-screenshot shows X)
+     Proves fixed: <ui-check rule> clean at <viewport>   (or: source check: X)
 [P1] ...
 False positives: <rule + selector + why>
 ```
 
-Concrete changes only: "raise `--text-muted` from #9CA3AF to #6B7280 (contrast 2.8 -> 4.8)", not "improve contrast". Group findings that share a root cause under one fix. Point each fix at its playbook: tone.md (busy/bland), clarify.md (copy), responsive.md (mobile), harden.md (states), and layout.md, typography.md or color.md where the root cause sits there.
+Concrete changes only: "raise `--text-muted` from #9CA3AF to #6B7280 (contrast on white 2.54:1 -> 4.83:1)", not "improve contrast". Group findings that share a root cause under one fix. Point each fix at its playbook: tone.md (busy/bland), clarify.md (copy), responsive.md (mobile), harden.md (states), and layout.md, typography.md or color.md where the root cause sits there.
 
 Screenshots are for the human to confirm taste, not for you to grade. Attach the `--out` folder path.
 

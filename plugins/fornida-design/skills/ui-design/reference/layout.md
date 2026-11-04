@@ -15,7 +15,7 @@ Layout turns priority into reading order, grouping, rhythm, and usable space. Di
 
 Use `--scope "<selector>"` to focus on one region. Use `--base 8` only if DESIGN.md defines an 8px base.
 
-Rules that matter: `spacing-outlier`, `off-scale`, `near-duplicate` and `too-many` (spacing values), `overflow-x`, `overlap`, `truncation`, `tap-target`, `nested-card`, and in compare mode `parity/geometry`, `parity/missing`, `parity/extra`, `parity/region`.
+Rules that matter: `spacing-outlier`, `off-scale`, `near-duplicate` and `too-many` (spacing values), `overflow-x`, `overlap`, `truncation`, `tap-target`, `nested-card`, and in the separate compare run `[parity/geometry]`, `[parity/missing]`, `[parity/extra]`, `[parity/crops]` (`[parity/region]` is a hint only).
 
 ## Diagnose
 

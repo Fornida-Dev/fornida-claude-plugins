@@ -17,7 +17,7 @@ node "<skill-dir>/scripts/ui-check.mjs" <url> --viewports mobile --scope "<form 
 Relevant rules:
 - `a11y/label`, `a11y/button-name`, `a11y/link-name`, `a11y/image-alt`: controls with no accessible name, usually icon-only buttons or placeholder-as-label inputs.
 - `truncation`: labels or messages clipped at narrow widths. Copy too long for its container, or a fixed width.
-- `line-length` over ~90 characters: helper or body text that will not be read.
+- `line-length` (text over 120 characters at over ~95 characters per line): helper or body text that will not be read.
 - `text-size` under 12px: fine print carrying real information.
 
 Also grep the source for weak strings: `OK`, `Submit`, `Yes`, `No`, `Click here`, `Learn more`, `Something went wrong`, `Error`, `Invalid`, `No data`, raw status codes, and placeholder attributes with no matching label.

@@ -37,6 +37,7 @@ Then make the code match: CSS custom properties or the Tailwind theme, named by 
 - **Tailwind v4 + shadcn/ui projects:** `@shadcn/lint` (MIT) with ESLint or Oxlint. Turn on `no-arbitrary-values`, `no-raw-colors`, `no-inline-styles`, `no-restyle`. Its errors name the correct token, so they are cheap to fix. Setup per the package README; run it in CI with the other lint.
 - **Plain CSS / CSS modules / SCSS:** `stylelint` with `stylelint-declaration-strict-value` set to require variables for `color`, `background-color`, `border-color`, `font-size`, `/^(margin|padding|gap)/`.
 - Pin exact versions, follow the project's install and CI standards, and note the new dependency in the README.
+- If you run ui-check with `--out` inside the repo, add that folder to `.gitignore`.
 
 ## 4. Verify
 
