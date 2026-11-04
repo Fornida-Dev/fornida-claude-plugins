@@ -8,6 +8,7 @@
     { "name": "superclaude",          "source": "./plugins/superclaude",          "category": "engineering" },
     { "name": "github",               "source": "./plugins/github",               "category": "productivity" },
     { "name": "superpowers",          "source": "./plugins/superpowers",          "category": "development" },
-    { "name": "vercel",               "source": "./plugins/vercel",               "category": "deployment" }
+    { "name": "vercel",               "source": "./plugins/vercel",               "category": "deployment" },
+    { "name": "fornida-design",       "source": "./plugins/fornida-design",       "category": "development" }
   ]
 }
