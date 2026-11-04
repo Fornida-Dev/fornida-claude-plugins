@@ -7,6 +7,13 @@
 - superpowers  <=  github.com/obra/superpowers  @ b36e0829c6d0140e93cfef2ca599b1b07d4a7797
 - vercel  <=  github.com/vercel/vercel-plugin  @ dca8da784e876cbb8e81bd98cb5b2b87323449ca
 
+## First-party plugins (Fornida-authored, not vendored)
+
+- fornida-design  (2026-11-04)  Fornida's frontend design skill + `ui-check` measurement tool. Not in
+  `setup-fornida-plugins.ps1`; the re-vendor script never touches it. Contains content adapted from
+  pbakaus/impeccable @ 5af4319 (Apache-2.0) and nextlevelbuilder/ui-ux-pro-max-skill @ ccce51c (MIT), and bundles
+  axe-core 4.14.0 (MPL-2.0) unmodified. Provenance, changes and licenses: `plugins/fornida-design/NOTICE.md`.
+
 ## No Fornida overlays — plugins are vendored RAW
 
 These plugins carry **no** Fornida-specific edits. Force/customization (e.g. the

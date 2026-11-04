@@ -33,4 +33,10 @@ plugins re-vendor cleanly with nothing to clobber. See VENDOR.md.
 ## Add a plugin
 Add a `Vendor` line in the script and an entry in `.claude-plugin/marketplace.json`.
 
+## First-party plugins
+`plugins/fornida-design` is written by Fornida, not vendored: the "no Fornida edits" rule above applies to vendored
+plugins only. It is not in the script, so re-vendoring never touches it. Change it directly, bump its
+`plugin.json` version, run `node --test plugins/fornida-design/test/*.test.mjs`, then push + Re-sync as usual.
+Third-party content inside it is listed in its `NOTICE.md`.
+
 Provenance + pinned SHAs: see VENDOR.md.

@@ -12,3 +12,10 @@ Moving the forced caveman output style INTO the kit (fornida-project-kit, alread
 This repo returns to raw vendored caveman: removing overlays/, apply-overlays.ps1,
 verify-overlays.ps1, the overlay calls in setup-fornida-plugins.ps1, the VENDOR.md
 overlay section, and restoring upstream caveman plugin.json (hooks). Branch: feat/caveman-raw-revert.
+
+## 2026-11-04 (brian.over via Claude) — add first-party fornida-design plugin
+New Fornida-authored plugin `plugins/fornida-design` (NOT vendored; the re-vendor script does not touch it).
+Combines: design method adapted from pbakaus/impeccable (Apache-2.0, launcher/live/telemetry/hooks removed),
+UX guideline data from nextlevelbuilder/ui-ux-pro-max-skill (MIT), check ideas from creynir/snug + gridproof (MIT,
+reimplemented, no code dependency), vendored unmodified axe-core (MPL-2.0). Adds marketplace.json entry, VENDOR.md +
+README notes. No hooks. Branch: claude/project-setup-plugins-53bc5a. Draft PR only, no merge/Re-sync (no deploy).

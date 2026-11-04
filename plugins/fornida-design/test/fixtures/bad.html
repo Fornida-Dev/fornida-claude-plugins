@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bad</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;color:#222}
+.wide{width:1700px;height:20px;background:#eee}
+.row{display:flex}
+.row>div{width:100px;height:40px;background:#ddd;margin-right:16px}
+.row>div.odd{margin-right:4px}
+.pad{padding:13px}
+.clip{width:80px;overflow:hidden;white-space:nowrap}
+.tiny{width:16px;height:16px;padding:0;border:0}
+.small{font-size:10px}
+.low{color:#bbb;background:#fff}
+.c1{color:#333333}.c2{color:#343434}
+.grad{background:linear-gradient(90deg,#f00,#00f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card{border:1px solid #ccc;border-radius:8px;padding:16px;min-height:80px;width:300px}
+.stripe{border-left:4px solid #e11d48;padding:8px;height:40px}
+.over>div{height:30px;background:#cde}
+.over>div+div{margin-top:-20px}
+button.nofocus{outline:none}
+button.nofocus:focus{outline:none}
+</style></head><body>
+<div class="wide">wide</div>
+<div class="row"><div>a</div><div class="odd">b</div><div>c</div><div>d</div></div>
+<div class="pad">padded thirteen</div>
+<div class="clip">This text is much too long for its box</div>
+<button class="tiny" aria-label="x"></button>
+<p class="small">tiny legal text here</p>
+<p class="low">Low contrast paragraph</p>
+<p class="c1">Dark one</p><p class="c2">Dark two</p>
+<h2 class="grad">Gradient heading</h2>
+<div class="card"><div class="card">inner card content</div></div>
+<div class="stripe">Callout</div>
+<div class="over"><div>first</div><div>second</div></div>
+<button class="nofocus">Save</button>
+<img src="missing.png" alt="missing">
+</body></html>
