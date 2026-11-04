@@ -52,9 +52,18 @@ export function parseArgs(argv) {
 }
 
 export function toUrl(t) {
-  if (/^(https?|file):\/\//i.test(t)) return t;
-  if (/^localhost(:\d+)?(\/|$)/i.test(t) || /^127\.0\.0\.1(:\d+)?(\/|$)/.test(t)) return "http://" + t;
-  const p = path.resolve(t);
+  if (/^https?:\/\//i.test(t)) { new URL(t); return t; }
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(t)) return "http://" + t;
+  if (/^(localhost|127\.|0\.0\.0\.0|\[)/i.test(t)) throw new Error(`ambiguous target "${t}": write it as http://${t}`);
+  let p = t;
+  if (/^file:/i.test(t)) {
+    const u = new URL(t);
+    if (u.host && u.host.toLowerCase() !== "localhost") throw new Error(`refusing file URL with a host: ${t}`);
+    p = fileURLToPath(u);
+  } else if (/^[a-z][a-z0-9+.-]*:/i.test(t) && !/^[a-zA-Z]:[\\/]/.test(t)) throw new Error(`unsupported target "${t}" (use http(s) or an HTML file)`);
+  else if (/^[\\/]{2}/.test(t)) throw new Error(`refusing network path: ${t}`);
+  p = path.resolve(p);
+  if (!/\.html?$/i.test(p)) throw new Error(`not an HTML file: ${t}`);
   if (!fs.existsSync(p)) throw new Error(`target not found: ${t} (give a URL or an HTML file)`);
   return pathToFileURL(p).href;
 }
