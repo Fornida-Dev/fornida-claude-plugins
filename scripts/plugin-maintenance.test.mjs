@@ -86,3 +86,30 @@ test("OSV summary sorts by severity and trims the root", () => {
   ] }] }, "/r");
   assert.deepStrictEqual(rows.map((r) => [r.pkg, r.source, r.max]), [["b@2.0.0", "plugins/x/bun.lock", 9.8], ["a@1.0.0", "plugins/x/bun.lock", 5.3]]);
 });
+
+import { bareSpecifiers, runtimePackages, exposureOf } from "./plugin-maintenance.mjs";
+
+test("bare package imports are found; relative and built-in ones are not", () => {
+  const got = bareSpecifiers(`import fs from "node:fs";\nimport { z } from "zod";\nconst h = require('handlebars');\nimport x from "./local.mjs";\nconst y = await import("@scope/pkg/sub");\nimport "side-effect";\nfrom 'npm:tar@7'`);
+  assert.ok(got.has("zod") && got.has("handlebars") && got.has("@scope/pkg") && !got.has("fs") && !got.has("./local.mjs"));
+});
+
+test("exposure: runtime only when shipped or imported by runtime code", () => {
+  const root = tree({
+    "plugins/p/hooks/h.mjs": "import { z } from 'zod';\n",
+    "plugins/p/scripts/release.ts": "import hb from 'handlebars';\n",          // dev tooling at the plugin root
+    "plugins/p/skills/s/tests/t.test.mjs": "import tar from 'tar';\n",        // tests
+    "plugins/p/skills/s/node_modules/undici/package.json": { name: "undici", version: "7.22.0" },
+    "plugins/p/src/cli.ts": "import { load } from 'js-yaml';\n",              // a CLI the plugin ships but Claude never runs
+  });
+  const rt = new Map([["p", runtimePackages(path.join(root, "plugins/p"))]]);
+  const row = (name, version) => ({ source: "plugins/p/bun.lock", name, version, ecosystem: "npm" });
+  assert.strictEqual(exposureOf(row("zod", "3.24.4"), rt), "runtime", "hook imports it");
+  assert.strictEqual(exposureOf(row("handlebars", "4.7.8"), rt), "build", "root scripts/ is dev tooling");
+  assert.strictEqual(exposureOf(row("tar", "7.5.9"), rt), "build", "tests do not ship");
+  assert.strictEqual(exposureOf(row("undici", "7.22.0"), rt), "runtime", "shipped node_modules");
+  assert.strictEqual(exposureOf(row("undici", "6.23.0"), rt), "build", "a different version than the shipped one");
+  assert.strictEqual(exposureOf(row("js-yaml", "4.1.1"), rt), "build", "src/ CLI is not runtime unless a hook runs from it");
+  assert.strictEqual(exposureOf({ ...row("nokogiri", "1.19.4"), ecosystem: "RubyGems", source: "plugins/p/site/Gemfile.lock" }, rt), "build");
+  fs.rmSync(root, { recursive: true, force: true });
+});

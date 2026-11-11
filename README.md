@@ -14,6 +14,9 @@ Actions → plugin-updates → Run workflow). It uses no Claude/API tokens. Each
    `plugin.json`, unique skill names, every hook script exists and parses, `claude plugin validate`.
 3. Scans changed files for secret shapes (reports `file:line`, never the value), vendored
    lockfiles with OSV-Scanner, and the pinned axe-core / playwright-core for CVEs and new releases.
+   Lockfile CVEs are split by exposure: **runtime** (the plugin ships the package, or a hook, skill,
+   agent or command imports it; high/critical fails the run) vs **build** (vendor tooling that Claude
+   never installs or loads; listed for the record, the vendor fixes it).
 4. Opens a **draft PR** (label `plugin-updates`; the previous open one is closed as superseded)
    when the re-vendor changed anything, or comments on the open *Plugin maintenance: action
    needed* issue when only advisories or errors remain. Errors also fail the run, which emails
