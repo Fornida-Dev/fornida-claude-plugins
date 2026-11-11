@@ -73,7 +73,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "base=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          git switch -c "auto/plugin-updates-$(date -u +%Y-%m-%d)"
+          git switch -c "auto/plugin-updates-$(date -u +%Y-%m-%d)-run${GITHUB_RUN_NUMBER}"   # unique: a same-day re-run must not collide
           set +e
           pwsh -NoProfile -File ./setup-fornida-plugins.ps1 -NoCommit
           echo "exit=$?" >> "$GITHUB_OUTPUT"
