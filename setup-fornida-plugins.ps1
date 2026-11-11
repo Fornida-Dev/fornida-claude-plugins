@@ -126,7 +126,7 @@ foreach ($p in $Plugins) {
     }
 
     # 3. Clean replace plugins/<name>/
-    $dest = Join-Path $repoRoot "plugins\$($p.name)"
+    $dest = Join-Path (Join-Path $repoRoot 'plugins') $p.name   # not "plugins\<name>": on Linux (CI) a backslash is part of the name
     if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
     New-Item -ItemType Directory -Path $dest | Out-Null
     Copy-Item -Path (Join-Path $srcPath '*') -Destination $dest -Recurse -Force

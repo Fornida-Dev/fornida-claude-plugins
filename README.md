@@ -4,8 +4,31 @@ Private Claude Code / Cowork plugin marketplace for Fornida. Distributed org-wid
 via Claude Org Settings > Plugins (GitHub sync). Plugins are vendored (copied in)
 and pinned to upstream commit SHAs for auditability - see VENDOR.md.
 
+## Scheduled maintenance (every other Friday)
+`.github/workflows/plugin-updates.yml` runs on even ISO weeks, Fridays 14:23 UTC (and on demand:
+Actions → plugin-updates → Run workflow). It uses no Claude/API tokens. Each run:
+
+1. Re-vendors the automated plugins with `setup-fornida-plugins.ps1 -NoCommit` (skip-flagged
+   plugins are left alone and reported when upstream has moved).
+2. Checks every plugin (`scripts/plugin-maintenance.mjs`): manifests parse, no nested
+   `plugin.json`, unique skill names, every hook script exists and parses, `claude plugin validate`.
+3. Scans changed files for secret shapes (reports `file:line`, never the value), vendored
+   lockfiles with OSV-Scanner, and the pinned axe-core / playwright-core for CVEs and new releases.
+4. Opens a **draft PR** (label `plugin-updates`; the previous open one is closed as superseded)
+   when the re-vendor changed anything, or comments on the open *Plugin maintenance: action
+   needed* issue when only advisories or errors remain. Errors also fail the run, which emails
+   whoever last edited the workflow.
+
+The PR lists what to review first: changed hook scripts, scripts, manifests and license files,
+i.e. code that will run on every machine. It never merges or publishes. After review: merge,
+**Re-sync** in Claude Org Settings → Plugins, then an Owner approves versions marked *needs attention*.
+
+One-time setup: Settings → Actions → General → *Allow GitHub Actions to create and approve pull
+requests*. Local check: `node scripts/plugin-maintenance.mjs --no-network`; tests:
+`node --test scripts/plugin-maintenance.test.mjs`.
+
 ## Update a vendored plugin
-Manual, on demand (no scheduled automation).
+Manual, on demand (the scheduled run above does steps 1–2 for the automated plugins).
 
 1. `.\setup-fornida-plugins.ps1` — re-pins each plugin to its latest upstream SHA and
    vendors the tree **RAW** (no overlays), updating VENDOR.md. `-Plugin <name>` updates one.
