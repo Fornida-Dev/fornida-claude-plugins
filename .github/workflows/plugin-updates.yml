@@ -115,7 +115,7 @@ jobs:
         if: steps.week.outputs.run == 'true'
         run: |
           set +e
-          osv-scanner scan source -r plugins --format json --output "$RUNNER_TEMP/osv.json"
+          osv-scanner scan source -r plugins --format json --output-file "$RUNNER_TEMP/osv.json"
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           exit 0
 

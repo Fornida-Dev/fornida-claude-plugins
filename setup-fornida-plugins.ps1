@@ -110,7 +110,10 @@ foreach ($p in $Plugins) {
     if (Test-Path $tmpRoot) { Remove-Item -Recurse -Force $tmpRoot }
     New-Item -ItemType Directory -Path $tmpRoot | Out-Null
     $clone = Join-Path $tmpRoot 'repo'
-    git -c core.longpaths=true clone --quiet --depth 1 --branch $p.branch "https://github.com/$($p.repo).git" $clone
+    #    core.symlinks=false: check symlinks out as small text files on EVERY OS, as Windows git already does.
+    #    The committed tree has them that way (e.g. CE's .claude/skills -> ../.agents/skills, whose target
+    #    is an excluded mirror dir); on Linux a real symlink would dangle and Copy-Item fails on it.
+    git -c core.longpaths=true -c core.symlinks=false clone --quiet --depth 1 --branch $p.branch "https://github.com/$($p.repo).git" $clone
     if ($LASTEXITCODE -ne 0) { Write-Error "git clone failed for $($p.repo)"; exit 1 }
     Remove-Item -Recurse -Force (Join-Path $clone '.git')
     $srcPath = if ($p.subpath) { Join-Path $clone ($p.subpath -replace '/', [IO.Path]::DirectorySeparatorChar) } else { $clone }
