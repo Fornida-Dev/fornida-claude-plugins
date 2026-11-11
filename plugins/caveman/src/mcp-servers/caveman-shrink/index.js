@@ -27,9 +27,9 @@
 //   CAVEMAN_SHRINK_DEBUG=1  log compression deltas to stderr
 
 const { spawn } = require('child_process');
-const { constants: osConstants } = require('os');
 const { StringDecoder } = require('string_decoder');
 const { compressDescriptionsInPlace, compress } = require('./compress');
+const { createShutdown } = require('./shutdown');
 
 const args = process.argv.slice(2);
 if (args.length === 0) {
@@ -59,20 +59,22 @@ upstream.on('error', err => {
   process.stderr.write(`caveman-shrink: failed to spawn upstream: ${err.message}\n`);
 });
 
+const shutdown = createShutdown({
+  child: upstream,
+  spawnFailed: () => spawnFailed,
+  endUpstreamInput: endInput,
+  detachInput: () => {
+    process.stdin.pause();
+    process.stdin.removeListener('data', forwardInput);
+    process.stdin.removeListener('end', handleClientEof);
+  },
+});
+
 // `exit` can fire while stdout still has unread data and while our own stdout
 // is backpressured. Wait for child `close`, stop accepting client input, then
 // let Node exit naturally so every transformed byte drains.
 upstream.on('close', (code, signal) => {
-  process.stdin.pause();
-  process.stdin.removeListener('data', forwardInput);
-  process.stdin.removeListener('end', endInput);
-  if (spawnFailed) {
-    process.exitCode = 1;
-  } else if (signal) {
-    process.exitCode = 128 + (osConstants.signals[signal] || 1);
-  } else {
-    process.exitCode = code || 0;
-  }
+  process.exitCode = shutdown.onClose(code, signal);
 });
 
 // Registering a handler here suppresses Node's default terminate-on-signal
@@ -88,16 +90,30 @@ upstream.on('close', (code, signal) => {
 // the upstream on exactly the teardown a user is most likely to trigger by
 // hand. Registering it here keeps that on the one code path the other two use.
 //
-// SIGKILL is deliberately absent: it cannot be trapped, and on that path the
-// upstream is orphaned by the OS with nothing this process can do about it.
-// Windows has no real signals — process.kill() there terminates the target
-// without running handlers — so teardown on that platform goes through the
-// stdin EOF the `close` handler above already forwards.
-function forwardSignalToUpstream(signal) {
-  if (!upstream.killed) upstream.kill(signal);
-}
+// Forwarding alone is not enough for a server that traps the signal and
+// declines to exit: nothing would ever fire `close`, and the wrapper would sit
+// there as long as the upstream did. `shutdown.forward` escalates to SIGKILL
+// after a grace period so teardown terminates anyway.
+//
+// That escalation reaches the DIRECT child only. getSpawnOptions() sets no
+// `detached`, so there is no process group to signal, and an upstream that is
+// really a launcher (`npx <server>`, a shell wrapper) can leave the actual
+// server running as a descendant holding the inherited stdout pipe — which
+// also keeps `close` from firing. Measured, with a descendant that traps
+// SIGTERM: the wrapper hangs and the descendant is orphaned, identically
+// before and after this escalation existed. Closing that gap means owning the
+// whole process tree (`detached` + `process.kill(-pid)` on POSIX, `taskkill
+// /T` on Windows), which changes how tty signals reach the child and is a
+// larger change than this one — deliberately not attempted here.
+//
+// SIGKILL is deliberately absent from the list below: it cannot be trapped, and
+// on that path the upstream is orphaned by the OS with nothing this process can
+// do about it. Windows has no real signals — process.kill() there terminates
+// the target without running handlers — so teardown on that platform goes
+// through the stdin EOF handled at the bottom of this file, which runs the same
+// escalation from its first step rather than relying on a signal arriving.
 for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) {
-  process.on(signal, () => forwardSignalToUpstream(signal));
+  process.on(signal, () => shutdown.forward(signal));
 }
 
 // JSON-RPC framing over stdio: messages are separated by newlines (the
@@ -138,6 +154,7 @@ function transformResponse(msg) {
   for (const arrayName of ['tools', 'prompts', 'resources', 'resourceTemplates']) {
     if (Array.isArray(r[arrayName])) {
       for (const item of r[arrayName]) {
+        if (!item || typeof item !== 'object') continue;
         for (const field of fields) {
           if (typeof item[field] === 'string') {
             const before = item[field];
@@ -163,7 +180,7 @@ function transformResponse(msg) {
   for (const arrayName of ['tools', 'prompts', 'resources', 'resourceTemplates']) {
     if (Array.isArray(r[arrayName])) {
       for (const item of r[arrayName]) {
-        if (item.inputSchema) compressDescriptionsInPlace(item.inputSchema, fields);
+        if (item && item.inputSchema) compressDescriptionsInPlace(item.inputSchema, fields);
       }
     }
   }
@@ -185,8 +202,23 @@ const responses = makeLineBuffer(line => {
     writeClient(line + '\n');
     return;
   }
-  const out = transformResponse(msg);
-  writeClient(JSON.stringify(out) + '\n');
+  let out;
+  try { out = JSON.stringify(transformResponse(msg)); } catch (error) {
+    // A response we fail to transform still reaches the client, unchanged.
+    // Reachable today: JSON.parse accepts a far deeper inputSchema than
+    // compressDescriptionsInPlace can recurse over, so a ~50k-deep schema
+    // raises RangeError here rather than in the parse above. Staying silent
+    // would turn any future transform fault into "compression quietly
+    // stopped", so name it when debugging is on.
+    if (debug) {
+      process.stderr.write(
+        `[caveman-shrink] transform failed, passing response through: ${error && error.message}\n`
+      );
+    }
+    writeClient(line + '\n');
+    return;
+  }
+  writeClient(out + '\n');
 });
 upstream.stdout.on('data', chunk => responses.push(chunk));
 upstream.stdout.on('end', () => responses.end());
@@ -208,5 +240,11 @@ upstream.stdin.on('error', err => {
     process.exitCode = 1;
   }
 });
+// Our client closing our stdin is how a host initiates shutdown over the MCP
+// stdio transport, so hand that EOF on to the upstream and let `shutdown` see
+// the teardown through if the upstream declines to act on it.
+function handleClientEof() {
+  shutdown.closeInput();
+}
 process.stdin.on('data', forwardInput);
-process.stdin.on('end', endInput);
+process.stdin.on('end', handleClientEof);
