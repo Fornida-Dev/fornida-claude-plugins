@@ -8,7 +8,6 @@
 - [LaunchDarkly](#launchdarkly)
 - [PostHog](#posthog)
 - [GrowthBook](#growthbook)
-- [Hypertune](#hypertune)
 - [Flagsmith](#flagsmith)
 - [Reflag](#reflag)
 - [OpenFeature](#openfeature)
@@ -28,12 +27,12 @@ pnpm i flags @flags-sdk/vercel
 
 ### Setup
 
-> **Prerequisite**: The `vercel flags` commands require the Vercel CLI to be installed and authenticated. If the Vercel CLI is not installed, run `pnpm i -g vercel`. For authentication or linking issues, follow the `vercel-cli` skill if it's already available. If it isn't, suggest the user install it with `npx skills add vercel/vercel@vercel-cli` (don't auto-install it) and rely on `vercel <command> --help` in the meantime.
+> **Prerequisite**: The Vercel CLI must be installed and authenticated. If it is not installed, run `pnpm i -g vercel`. For authentication or linking issues, follow the `vercel-cli` skill if it's already available. If it isn't, suggest the user install it with `npx skills add vercel/vercel@vercel-cli` (don't auto-install it) and rely on `vercel <command> --help` in the meantime.
 
-Before running any `vercel flags` command, verify the project is linked to Vercel. Check for a `.vercel` directory in the project root. If it doesn't exist, run `vercel link` first.
+The following steps integrate a flag into an app and need a linked project for `vercel env pull` ([Set up the SDK](../SKILL.md#set-up-the-sdk), step 2). To only inspect or change remote flags, use the `vercel-flags` skill instead.
 
-1. Create a flag in the Vercel dashboard or via CLI: `vercel flags add <flag-key> --kind boolean --description "<description>"`
-2. Pull env vars: you **must** run `vercel env pull` to write `FLAGS` and `FLAGS_SECRET` to `.env.local`. Without these environment variables, `vercelAdapter` will not be able to evaluate flags.
+1. Create a flag in the Vercel dashboard or via CLI: `vercel flags create <flag-key> --kind boolean --description "<description>"`
+2. Pull env vars: run `vercel env pull` to write the Vercel OIDC token and the Development `FLAGS_SECRET` to `.env.local` ([Pull environment variables](../SKILL.md#pull-environment-variables)).
 3. Declare the flag:
 
 ```ts
@@ -69,6 +68,24 @@ export const exampleFlag = flag<boolean, Entities>({
 });
 ```
 
+Define the entities and attributes under Flags → Entities in the dashboard before you use them in rules or segments, and return the same names from `identify` ([Entities](https://vercel.com/docs/flags/vercel-flags/dashboard/entities)). The example above allows `--by user.id` / `--by team.id` in `vercel flags split`, `rollout`, and `rules add`, and the matching conditions in dashboard rules. Entities are evaluated fresh on every call; a rule whose attribute is missing from the context is skipped.
+
+#### Attribute types
+
+Each attribute has a type: String, Number, Boolean, String Array, or Timestamp. The value `identify` returns must match it.
+
+- **Timestamp** is a Unix epoch in **milliseconds** as a `number` (`Date.now()`, `user.createdAt.getTime()`, `1719792000000`). Do not pass a `Date`, an ISO string, or seconds.
+- Timestamp rules only compare: is after / is before / is at or after / is at or before (`gt` / `lt` / `gte` / `lte`). Equality, one-of, and exists operators are not available for Timestamp attributes.
+- Timestamp attributes cannot bucket a split or rollout (`--by`); use them in rule conditions only.
+- To release at a certain time, pass the current time as `system.time` and compare against it in a rule. Keep `Date.now()` inside `dedupe` so every flag in the request sees the same time:
+
+```ts
+const identify = dedupe(async () => ({
+  system: { time: Date.now() },
+  user: { id: 'user-456', signupAt: 1719792000000 },
+}));
+```
+
 ### Flags Explorer
 
 ```ts
@@ -80,6 +97,29 @@ export const GET = createFlagsDiscoveryEndpoint(async () => {
   return await getProviderData(flags);
 });
 ```
+
+### Project Connections
+
+Check the installed `@flags-sdk/vercel` version before changing the code. Project Connections require version 1.6.0 or later; upgrade it if needed. The adapter includes the required core library version.
+
+To read flags from another project in the same team, first grant the consumer project access from the source project's **Flags → Connections** page. Then pass the source project's ID:
+
+```ts
+import { flag } from 'flags/next';
+import { createVercelAdapter } from '@flags-sdk/vercel';
+
+const sharedAdapter = createVercelAdapter({ projectId: 'prj_source' });
+
+export const sharedFeature = flag({
+  key: 'shared-feature',
+  adapter: sharedAdapter,
+  defaultValue: false,
+});
+```
+
+Use `vercelAdapter` alongside this adapter for the consumer's own flags. Both use the consumer's OIDC token; do not mint an SDK key for a connection. Run `vercel env pull` in the consumer project for local development. Connections apply across environments, and the token selects the source environment; custom environments use preview.
+
+For direct core access, use `@vercel/flags-core` version 1.11.0 or later with `createClient({ projectId: 'prj_source' })`. The `projectId` option cannot be combined with an SDK key. CLI management requires Vercel CLI version 63.0.0 or later; use the `vercel-flags` skill for the connection workflow, or see the [CLI reference](https://vercel.com/docs/cli/flags#project-connections). See [Project Connections](https://vercel.com/docs/flags/vercel-flags/project-connections) for permissions and setup.
 
 ### Custom configuration
 
@@ -102,7 +142,7 @@ If the app also uses `@vercel/flags-core` directly, create the client once and p
 import { createClient } from '@vercel/flags-core';
 import { createVercelAdapter } from '@flags-sdk/vercel';
 
-const vercelFlagsClient = createClient(process.env.FLAGS);
+const vercelFlagsClient = createClient(); // Vercel OIDC token, on deployments and after `vercel env pull`
 const vercelAdapter = createVercelAdapter(vercelFlagsClient);
 
 export const exampleFlag = flag({
@@ -111,84 +151,17 @@ export const exampleFlag = flag({
 });
 ```
 
-### `vercel flags` CLI
+Outside Vercel, pass the SDK key: `createClient(process.env.FLAGS)`. Unlike `vercelAdapter()`, `createClient()` does not read `FLAGS` on its own.
 
-Manage Vercel Flags from the terminal. Requires the [Vercel CLI](https://vercel.com/docs/cli) and a linked project.
+### Core client in other frameworks (for example, Express)
 
-> **Prerequisite**: The Vercel CLI must be installed (`pnpm i -g vercel`) and the project must be linked (`vercel link` — check for a `.vercel` directory). For authentication issues, read and follow the `vercel-cli` skill.
+Frameworks without a Flags SDK entrypoint use `@vercel/flags-core` directly instead of this SDK. The `vercel-flags` skill carries the example and the OIDC timing rules ([Core SDK](https://vercel.com/docs/flags/vercel-flags/sdks/core)).
 
-#### Subcommands
+### Managing flags
 
-| Subcommand   | Description                                           |
-| ------------ | ----------------------------------------------------- |
-| `list`       | List all flags in the project                         |
-| `add`        | Create a new flag                                     |
-| `inspect`    | Show details, status, and targeting rules of a flag   |
-| `enable`     | Enable a boolean flag for a specific environment      |
-| `disable`    | Disable a boolean flag for a specific environment     |
-| `archive`    | Archive a flag (required before deleting)              |
-| `rm`         | Delete an archived flag                               |
-| `sdk-keys`   | Manage SDK keys (subcommands: `ls`, `add`, `rm`)      |
+What a flag serves (enable, set, split, rollout, rules, segments, archive) is configured in the Vercel dashboard or with the `vercel flags` CLI, not in code. Keep the declaration in sync with the remote definition: the CLI key is the `key` in `flag()`, the kind matches the type parameter, `options` mirror the variants, and `defaultValue` is what the flag serves when it is archived or still a draft. The `vercel-flags` skill covers rollouts, experiments, promotion order, and the checks to run before archiving; `vercel flags <cmd> --help` lists the options.
 
-#### Create and toggle a flag
-
-```bash
-# Create a boolean flag with a description
-vercel flags add my-feature --kind boolean --description "New onboarding flow"
-
-# Enable in development first
-vercel flags enable my-feature --environment development
-
-# Promote to production
-vercel flags enable my-feature --environment production
-
-# Disable in production
-vercel flags disable my-feature --environment production
-
-# Change string variant in production
-vercel flags set my-feature -e production --variant my-variant
-```
-
-`enable` and `disable` only work with boolean flags. For changing the state of other flag types, use the `set` command. Use the vercel-cli skill for full reference.
-
-
-#### Inspect and list flags
-
-```bash
-# Show details of a specific flag (status, environments, targeting rules)
-vercel flags inspect my-feature
-
-# List all flags in the project
-vercel flags list
-```
-
-#### Archive and delete a flag
-
-A flag must be archived before it can be deleted:
-
-```bash
-vercel flags archive my-feature
-vercel flags rm my-feature
-```
-
-#### Manage SDK keys
-
-SDK keys connect your application to Vercel Flags. The `FLAGS` environment variable contains an SDK key.
-
-```bash
-# List SDK keys for the project
-vercel flags sdk-keys ls
-
-# Create a new SDK key
-vercel flags sdk-keys add
-
-# Remove an SDK key
-vercel flags sdk-keys rm <sdk-key-id>
-```
-
-These examples cover common flag operations. For the full `vercel flags` reference and other Vercel CLI commands, see the `vercel-cli` skill. If it isn't installed, suggest the user install it with `npx skills add vercel/vercel@vercel-cli`.
-
-Full CLI reference: https://vercel.com/docs/cli/flags
+CLI reference: https://vercel.com/docs/cli/flags
 
 ---
 
@@ -500,32 +473,6 @@ growthbookAdapter.setTrackingCallback((experiment, result) => {
 
 ---
 
-## Hypertune
-
-Package: `@flags-sdk/hypertune`
-
-```bash
-pnpm i hypertune flags server-only @flags-sdk/hypertune @vercel/global-config
-```
-
-Requires code generation: `npx hypertune`
-
-```ts
-import { createHypertuneAdapter } from '@flags-sdk/hypertune';
-import { createSource, flagFallbacks, vercelFlagDefinitions, type Context, type FlagValues } from './generated/hypertune';
-
-const hypertuneAdapter = createHypertuneAdapter<FlagValues, Context>({
-  createSource,
-  flagFallbacks,
-  flagDefinitions: vercelFlagDefinitions,
-  identify,
-});
-
-export const exampleFlag = flag(hypertuneAdapter.declarations.exampleFlag);
-```
-
----
-
 ## Flagsmith
 
 Package: `@flags-sdk/flagsmith`
@@ -534,7 +481,9 @@ Package: `@flags-sdk/flagsmith`
 pnpm i @flags-sdk/flagsmith
 ```
 
-Env: `FLAGSMITH_ENVIRONMENT_ID` (required)
+Env: `FLAGSMITH_ENVIRONMENT_KEY` (required)
+
+Remote evaluation is the default for serverless deployments. For a long-running server, use `createFlagsmithAdapter({ environmentKey, enableLocalEvaluation: true })` with a server-side key to opt into local evaluation and environment polling. Call `adapter.close()` on shutdown to stop polling.
 
 ### Usage with type coercion
 

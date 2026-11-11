@@ -1,4 +1,4 @@
-# Vercel Ecosystem — Relational Knowledge Graph (as of Aug 5, 2026)
+# Vercel Ecosystem — Relational Knowledge Graph (as of Sep 18, 2026)
 
 > This document is the master reference for understanding the entire Vercel ecosystem.
 > It maps every product, library, CLI, API, and service — how they relate, when to use each,
@@ -34,23 +34,39 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ⤳ skill: vercel-cli
 │   ⤳ skill: deployments-cicd
 │
-├── Edge Network (Global CDN, ~300ms propagation)
-│   ⊃ Edge Functions (V8 isolates, Web Standard APIs)
-│   ⊃ Serverless Functions (Node.js, Python, Go, Ruby)
-│   ⊃ Fluid Compute (unified execution model)
+├── Vercel CDN (global network, ~300ms propagation; formerly "Edge Network")
+│   ⊃ Vercel Functions (Node.js default, Bun, Python, Rust; Edge runtime is legacy)
+│   ⊃ Fluid Compute (default execution model: instance reuse, Active CPU pricing)
+│   ⊃ Container images (Dockerfile → Vercel Functions via Vercel Container Registry)
 │   ⊃ Routing Middleware (request interception before cache, any framework)
 │   ⊃ Runtime Cache (per-region key-value, tag-based invalidation)
 │   ⊃ WebSockets (bidirectional realtime on Functions, needs Fluid Compute)
-│   ⊃ Cron Jobs (scheduled function invocation → see § Functions decision matrix)
+│   ⊃ Vercel Schedules (cron or one-time runs of private functions, paths, or queue topics; replaces Cron Jobs)
+│   ⊃ Cron Jobs (legacy scheduled function invocation → migrate to Schedules)
+│   ⊃ Custom Metrics (numeric samples from Functions → Observability / vc metrics)
+│   ⊃ Vercel Queues (durable topics, at-least-once delivery, consumer groups; beta — the primitive under Workflows)
+│   ⊃ Vercel Daemons (long-running containers with no inbound traffic, `daemons` key in vercel.json; beta, production only)
 │   ⤳ skill: create-a-backend  (backend product and framework selection)
 │   ⤳ skill: vercel-functions
+│   ⤳ skill: custom-metrics
 │   ⤳ skill: routing-middleware
 │   ⤳ skill: runtime-cache
+│   ⤳ skill: queues
+│   ⤳ skill: daemons
+│   ⤳ skill: vercel-schedules
 │
 ├── Domains & DNS
 │   → Deployment Engine
 │   ↔ Vercel Firewall
+│   ⤳ skill: domains  (public search, registration, project domains, DNS, transfers, renewals)
 │   ⤳ skill: vercel-cli  (vercel domains, vercel dns, vercel certs)
+│
+├── Vercel Tracing (OpenTelemetry spans from deployed traffic)     ⤳ skill: vercel-tracing  📖 docs: https://vercel.com/docs/tracing
+│   ⊃ Always-on tracing (sampled production and preview requests)
+│   ⊃ Session tracing (browser-session capture)
+│   → @vercel/otel + @opentelemetry/api (framework and custom spans)
+│   ↔ Vercel Functions / Logs (request IDs and trace inspection)
+│   ↔ Vercel CLI (vercel traces inspect, search, create, config)
 │
 ├── Environment Variables                        ⤳ skill: env-vars
 │   → Deployment Engine
@@ -58,11 +74,12 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   ↔ Marketplace Integrations (auto-provisioned)
 │   ⤳ skill:bootstrap
 │
-├── Vercel Flags (feature flags & experimentation)     ⤳ skill: flags-sdk  📖 docs: https://vercel.com/docs/flags
-│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)
+├── Vercel Flags (feature flags & experimentation)     ⤳ skill: vercel-flags  📖 docs: https://vercel.com/docs/flags
+│   ⊃ Flags SDK (`flags` npm package, @flags-sdk/vercel adapter)   ⤳ skill: flags-sdk
+│   ⊃ @vercel/flags-core (other frameworks) and OpenFeature provider
 │   ⊃ Flags Explorer (override flags from the Vercel Toolbar)
 │   ⊃ Precompute pattern (static A/B variants via middleware rewrites)
-│   ↔ Vercel CLI (vercel flags — create, set, enable, disable, sdk-keys)
+│   ↔ Vercel CLI (vercel flags — create, set, split, rollout, rules, evaluations, archive)
 │   ↔ Global Config (alternative store via @flags-sdk/global-config adapter)
 │
 ├── Secure Compute (isolated infrastructure for compliance workloads)
@@ -84,13 +101,13 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 │   → Deployment Engine (preview URLs)
 │   ↔ Preview Comments (inline annotation)
 │   ↔ Vercel Analytics (performance overlay)
-│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: flags-sdk
+│   ↔ Vercel Flags (Flags Explorer overrides)    ⤳ skill: vercel-flags
 │
 ├── Vercel Templates (starter kits and example repos)
 │   → Deployment Engine (one-click deploy)
 │   ↔ Vercel Marketplace (pre-configured integrations)
 │   ↔ Next.js, AI SDK, v0 (framework starters)
-│   ⊃ next-forge (production SaaS monorepo starter)    ⤳ skill: next-forge
+│   ⊃ next-forge (production SaaS monorepo starter)
 │       → Turborepo, Clerk, Prisma/Neon, Stripe, Resend, shadcn/ui, Sentry, PostHog
 │       → 7 apps (app, web, api, email, docs, studio, storybook)
 │       → 20 @repo/* workspace packages
@@ -98,7 +115,7 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 ├── Microfrontends (multi-zone routing across independent Vercel projects)
 │   ⊃ microfrontends.json (routing config deployed with default app)
 │   ⊃ Local dev proxy (routes requests to local apps or fallbacks)
-│   ↔ Edge Network (routing resolved at network layer)
+│   ↔ Vercel CDN (routing resolved at network layer)
 │   ↔ @vercel/microfrontends (Next.js, SvelteKit, React Router, Vite)
 │   ⤳ skill: microfrontends
 │
@@ -120,14 +137,20 @@ VERCEL PLATFORM                            📖 docs: https://vercel.com/docs
 ## 2. Frameworks
 
 ```
-NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://nextjs.org/docs
+NEXT.JS (v16+)                           📖 docs: https://nextjs.org/docs
+├── Agent docs: version-matched, bundled in node_modules/next/dist/docs/
+│   ⊃ Read these before writing Next.js code (official guidance)
+│   ⊃ 16.3+: `next dev` writes AGENTS.md pointing at them (16.3 also writes a CLAUDE.md importing @AGENTS.md; 16.4+ writes only AGENTS.md)
+│   ⊃ 16.2: docs bundled, add AGENTS.md yourself; ≤16.1: npx @next/codemod@canary agents-md
+│   ⊃ Workflow skills (Cache Components, Partial Prefetching, dev loop): npx skills add vercel/next.js
+│
 ├── App Router (file-system routing)
 │   ⊃ Server Components (default, zero client JS)
 │   ⊃ Client Components ('use client')
 │   ⊃ Server Actions / Server Functions ('use server')
 │   ⊃ Route Handlers (API endpoints)
 │   ⊃ Middleware → renamed to Proxy in v16
-│   ⊃ Cache Components ('use cache')              ⤳ skill: next-cache-components
+│   ⊃ Cache Components ('use cache')
 │   ⊃ Layouts, Loading, Error boundaries
 │   ⊃ Parallel & Intercepting Routes
 │   ⊃ Dynamic Segments ([id], [...slug], [[...slug]])
@@ -139,7 +162,7 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 │   ⊃ PPR (Partial Prerendering) → evolving to Cache Components
 │   ⊃ Streaming (React Suspense boundaries)
 │
-├── Upgrading                                    ⤳ skill: next-upgrade
+├── Upgrading: `next upgrade` (16.1+) or npx @next/codemod@canary upgrade latest
 │
 ├── Build System
 │   → Turbopack (default bundler in v16)
@@ -148,8 +171,8 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
 ├── Key Integrations
 │   ↔ Vercel AI SDK (chat UIs, streaming, tool calling)
 │   ↔ Vercel Analytics / Speed Insights
-│   ↔ Vercel Image Optimization (next/image)      ⤳ skill: nextjs
-│   ↔ Satori / @vercel/og (dynamic OG images)     ⤳ skill: nextjs
+│   ↔ Vercel Image Optimization (next/image)
+│   ↔ Satori / @vercel/og (dynamic OG images)
 │   ↔ Vercel Font Optimization (next/font)
 │   ↔ Vercel Functions (automatic from route handlers / server actions)
 │
@@ -157,7 +180,7 @@ NEXT.JS (v16+)                           ⤳ skill: nextjs  📖 docs: https://n
     → Vercel Platform (optimized, zero-config)
     ↔ Vercel CLI (vercel dev, vercel build)
 
-SHADCN/UI                                ⤳ skill: shadcn  📖 docs: https://ui.shadcn.com
+SHADCN/UI                                📖 docs: https://ui.shadcn.com
 ├── CLI (npx shadcn@latest init/add/build/search)
 │   ⊃ Component source code copied to your project
 │   ⊃ Radix UI primitives + Tailwind CSS
@@ -191,7 +214,7 @@ OTHER SUPPORTED FRAMEWORKS
 ## 3. AI Products
 
 ```
-AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https://sdk.vercel.ai/docs
+AI SDK (v7, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https://sdk.vercel.ai/docs
 ├── Core
 │   ⊃ generateText / streamText
 │   ⊃ generateText / streamText with Output.object() (structured output)
@@ -221,7 +244,7 @@ AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
 │   ⊃ MessageResponse = universal renderer for AI text (chat, workflows, reports, notifications)
 │   ⊃ Never render AI text as raw {text} or <p>{content}</p> — use AI Elements
 │   → AI SDK UI hooks (useChat, useCompletion)
-│   → shadcn/ui (component primitives)                 ⤳ skill: shadcn
+│   → shadcn/ui (component primitives)
 │
 │
 ├── MCP Integration (@ai-sdk/mcp)
@@ -254,7 +277,7 @@ AI SDK (v6, TypeScript)                    ⤳ skill: ai-sdk  📖 docs: https:/
     ↔ AI Gateway (model routing, cost tracking)
     ↔ Generation Persistence (IDs, URLs, cost tracking) ⤳ skill: ai-sdk
     ↔ v0 (AI-generated UI components)
-    ↔ AI Elements (production chat UI components)          ↔ shadcn/ui (component foundation)                 ⤳ skill: shadcn
+    ↔ AI Elements (production chat UI components)          ↔ shadcn/ui (component foundation)
 
 AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: https://vercel.com/docs/ai-gateway
 ├── Unified API ("creator/model-name" format)
@@ -278,7 +301,7 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
 │
 ├── Image Generation (gateway-native)
 │   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image-preview' + generateText → result.files
-│   ⊃ Image-only models: experimental_generateImage (Imagen 4.0, Flux 2, Grok Imagine)
+│   ⊃ Image-only models: generateImage (Imagen 4.0, Flux 2, Grok Imagine)
 │   ⊃ Default model: google/gemini-3.1-flash-image-preview
 │   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image Preview
 │
@@ -291,7 +314,7 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
     ⊃ Text, Image, Video generation
     ↔ AI SDK (unified interface)
 
-WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflow
+WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https://vercel.com/docs/workflows
 ├── Core Concepts
 │   ⊃ 'use workflow' directive
 │   ⊃ 'use step' directive
@@ -307,7 +330,7 @@ WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https
 │   ⊃ Self-hosted (Postgres, Redis, custom)
 │
 ├── AI Integration
-│   ⊃ DurableAgent (@workflow/ai/agent)
+│   ⊃ WorkflowAgent (@ai-sdk/workflow 2.x, requires Workflow 5 on workflow@latest) — replaces DurableAgent from @workflow/ai, deprecated in Workflow 5
 │   → AI SDK Agent class (wrapped with durability)
 │   → AI SDK tool calling (each tool = retryable step)
 │   → AI Gateway (OIDC auth for model strings in workflow steps)
@@ -319,9 +342,10 @@ WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https
 │   ⊃ Retryable (automatic retry on failure)
 │
 └── Integrations
-    ↔ AI SDK 6 (DurableAgent)
+    ↔ AI SDK 7 (WorkflowAgent from @ai-sdk/workflow)
     ↔ Vercel Functions (automatic step isolation)
     ↔ Next.js (API routes as workflow endpoints)
+    ↔ Vercel Queues (underlying transport; use `@vercel/queue` directly for plain publish/consume)   ⤳ skill: queues
 
 AGENT BUILDING DEFAULTS                   ⤳ skill: build-agents
 ├── Default entrypoint for generic "build/create/scaffold an agent" requests
@@ -356,6 +380,13 @@ eve (TypeScript, beta)                    ⤳ skill: eve  📖 docs: https://eve
     ↔ AI SDK and AI Gateway (models, messages, and tools)
     ↔ Vercel Sandbox (isolated agent workspaces)
     ↔ Vercel Connect (`@vercel/connect/eve` managed OAuth connections)
+
+IS AGENTIC (agent-readiness scoring)        ⤳ skill: is-agentic  📖 docs: https://is-agentic.com/docs
+├── Scores how ready a public website, domain, or MCP endpoint is for AI agents (0-100)
+│   ⊃ Report API (read-only JSON), official CLI (`npx is-agentic`), MCP server
+│   → Ora API (runs and scores every technical scan)
+└── Integrations
+    ↔ Agents that need to check or improve a site's agent readiness
 
 CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: https://chat-sdk.dev
 ├── Core
@@ -403,15 +434,17 @@ CHAT SDK (TypeScript)                       ⤳ skill: chat-sdk  📖 docs: http
     ⊃ Test context factories (createSlackTestContext, etc.)
     ⊃ Assertion helpers (expectValidMention, expectSentMessage)
 
-VERCEL AGENT                               ⤳ skill: vercel-agent  📖 docs: https://vercel.com/docs/workflow/agent
+VERCEL AGENT (public beta, Pro/Enterprise)  ⤳ skill: vercel-agent  📖 docs: https://vercel.com/docs/agent
 ├── Capabilities
+│   ⊃ Chat (dashboard and Slack; read-only by default, approved actions on request)
 │   ⊃ Automated code review (PR analysis, security, logic errors)
-│   ⊃ Incident investigation (anomaly debugging)
-│   ⊃ SDK installation assistance
+│   ⊃ Investigations (anomaly alerts, failed deploys, runtime errors, cost/perf)
+│   ⊃ Installation (adds supported Vercel products via PR)
 │   ⊃ Vercel Sandbox (secure patch validation)   ⤳ skill: vercel-sandbox
 │
 └── Integrations
     ↔ GitHub (PR triggers, @vercel mentions)
+    ↔ Slack (chat and investigations)
     ↔ Vercel Sandbox (isolated code execution)
     ↔ AI SDK (underlying AI capabilities)
 ```
@@ -421,7 +454,7 @@ VERCEL AGENT                               ⤳ skill: vercel-agent  📖 docs: h
 ## 4. Build Tools
 
 ```
-TURBOPACK                                  ⤳ skill: turbopack  📖 docs: https://turbo.build/pack/docs
+TURBOPACK                                  📖 docs: https://nextjs.org/docs/app/api-reference/turbopack
 ├── Purpose: JavaScript/TypeScript bundler
 │   ⊃ Instant HMR (doesn't degrade with app size)
 │   ⊃ Multi-environment builds (Browser, Server, Edge, SSR, RSC)
@@ -452,12 +485,19 @@ REACT BEST PRACTICES ⤳ skill: react-best-practices
 │
 └── Use When: After editing multiple TSX components, before shipping
 
+OFFLOAD TO SANDBOX ⤳ skill: offload-to-sandbox
+├── Purpose: Run heavy builds, test suites and parallel experiments on Vercel Sandboxes instead of the local machine
+│ ⊃ Base snapshot once, one sandbox per task, source pushes that keep dependencies, detached long jobs
+│ ⊃ Sharded suites, baseline failure triage, cost and cleanup
+│
+└── Use When: The local machine is overloaded or shared by agents, or a suite should be sharded
+
 ---
 
 ## 5. Storage & Data
 
 ```
-VERCEL BLOB (active, first-party)          ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/storage/vercel-blob
+VERCEL BLOB (active, first-party)          ⤳ skill: vercel-storage  📖 docs: https://vercel.com/docs/vercel-blob
 ├── Purpose: File storage for unstructured data
 │   ⊃ Client uploads (up to 5 TB)
 │   ⊃ Conditional gets with ETags
@@ -469,7 +509,7 @@ VERCEL GLOBAL CONFIG (active, first-party) ⤳ skill: vercel-storage  📖 docs:
 ├── Purpose: Global low-latency key-value for config
 │   ⇢ renamed from: Edge Config (July 2026; @vercel/global-config replaces @vercel/edge-config as drop-in)
 │   ⊃ Dynamic routing rules
-│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: flags-sdk)
+│   ⊃ Flag storage via @flags-sdk/global-config (prefer Vercel Flags ⤳ skill: vercel-flags)
 │   ⊃ @vercel/global-config package (supports Next.js 16 cacheComponents)
 │
 └── Use When: Config that must be read at the edge instantly
@@ -526,12 +566,12 @@ VERCEL CONNECT                             ⤳ skill: vercel-connect  📖 docs:
 ├── Integration paths
 │   ⊃ Vercel CLI (vercel connect create/list/token)
 │   ⊃ @vercel/connect SDK (getToken)
-│   ⊃ @vercel/connect/ash (connect() helper, connectSlackCredentials())
+│   ⊃ @vercel/connect/eve (connect() helper, connectSlackCredentials())
 │   ⊃ HTTP API (for non-JS callers)
 │
 └── Integrations
     ↔ Vercel OIDC (token exchange uses OIDC for authentication)
-    ↔ Vercel Agent / Ash (declarative connection wiring)
+    ↔ eve (declarative connection wiring)
     ⇢ replaces hand-managed SLACK_BOT_TOKEN / SLACK_SIGNING_SECRET env vars
 ```
 
@@ -571,7 +611,8 @@ VERCEL CLI (vercel / vc)                   ⤳ skill: vercel-cli  📖 docs: htt
 │   ⊃ vercel integration remove (uninstall)
 │
 ├── Other
-│   ⊃ vercel logs (view function logs)
+│   ⊃ vercel logs (runtime logs; `vercel logs requests` for CDN requests)
+│   ⊃ vercel traces (span search, trace inspection, sampling rules)    ⤳ skill: vercel-tracing
 │   ⊃ vercel inspect (deployment details)
 │   ⊃ vercel domains (manage domains)
 │   ⊃ vercel certs (SSL certificates)
@@ -633,7 +674,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ----------------------------------- | -------------------------------- | ------------------------------------------------ |
 | Form submissions, in-app mutations  | Server Actions                   | Integrated with caching, progressive enhancement |
 | Public API, webhooks, large uploads | Route Handlers                   | REST semantics, streaming support                |
-| Scheduled tasks                     | Cron Jobs + Serverless Functions | Reliable scheduling                              |
+| Scheduled tasks                     | Vercel Schedules (beta)          | Timezones, private targets; replaces legacy Cron Jobs |
 
 ### AI Features
 
@@ -646,15 +687,15 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Chat UI components (messages, tools, reasoning) | AI Elements (`npx ai-elements`) | Pre-built, handles UIMessage parts |
 | Custom chat rendering (no AI Elements) | Manual `message.parts` iteration | Full control over rendering |
 | Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
-| Image generation (image-only models) | `experimental_generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
+| Image generation (image-only models) | `generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
 | New durable agent or agent-powered application | eve | Filesystem-first runtime with sessions, tools, skills, channels, sandboxes, subagents, schedules, evals, and frontend clients |
-| Add durability to an existing agent or application workflow | Workflow SDK `DurableAgent` | Crash-safe orchestration without adopting a complete agent framework |
+| Add durability to an existing agent or application workflow | `WorkflowAgent` from `@ai-sdk/workflow` (Workflow 5, `workflow@latest`) | Crash-safe orchestration without adopting a complete agent framework |
 | Browser UI for an eve agent | eve `useEveAgent` + AI Elements-compatible messages | Durable session streaming for React, Vue, or Svelte clients |
 | Provider-specific features (e.g., computer use) | Direct provider SDK (`@ai-sdk/anthropic`) | Only when gateway doesn't expose the feature |
 | Connect to external tools | AI SDK MCP Client | Standard protocol, OAuth |
-| Agent needs live Vercel state | Vercel MCP Server | Read projects, deployments, logs via MCP |
+| Agent needs live Vercel state | Vercel MCP Server | Inspect projects, deployments, logs, and analytics; deploy and update resources with authorized MCP tools |
 | Multi-platform chat bot (Slack, Teams, Discord, Telegram, etc.) | Chat SDK (`chat` + `@chat-adapter/*`) | Single codebase, unified API, cards, streaming |
 | Chat bot with AI responses | Chat SDK + AI SDK (`thread.post(textStream)`) | Streaming AI across all platforms |
 | UI generation from prompts | v0 | Visual output, GitHub integration |
@@ -685,7 +726,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ---------------------------------- | ----------------------------- | ------------------------------------------- |
 | DDoS protection                    | Vercel Firewall (automatic)   | Always on, all plans                        |
 | Custom traffic rules               | WAF rules engine              | Framework-aware, 300ms propagation          |
-| Bot blocking                       | Bot Filter                    | One-click, public beta                      |
+| Bot blocking                       | BotID + bot protection ruleset | Kasada-powered detection; managed ruleset challenges non-browser traffic |
 | Rate limiting                      | WAF rate limiting             | Per-endpoint control                        |
 | OWASP protection                   | Managed rulesets (Enterprise) | Industry-standard rules                     |
 | Compliance isolation (SOC2, HIPAA) | Secure Compute                | Dedicated infrastructure, no shared tenancy |
@@ -695,29 +736,31 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 
 | Need | Use | Why |
 |------|-----|-----|
-| Standard server logic | Serverless Functions (Node.js) | Full Node.js, up to 14min (paid) |
-| Ultra-low latency, simple logic | Edge Functions | <1ms cold start, global |
-| Long-running with I/O waits | Fluid Compute | Shared instances, waitUntil |
+| Standard server logic | Vercel Functions (Node.js on Fluid Compute) | Full Node.js; 300s default, 800s max on Pro/Enterprise (1800s beta) |
+| Low-latency reads near users | Vercel Functions + Global Config or Runtime Cache | Keep Node.js; the Edge runtime is deprecated in Next.js 16.3 |
+| Long-running with I/O waits | Fluid Compute (default) | Shared instances, Active CPU pricing, waitUntil |
 | AI streaming responses | Streaming Functions | SSE, zero config |
 | Realtime bidirectional (chat, collab) | WebSockets on Functions | `ws`/Socket.IO, needs Fluid Compute, no third-party service |
-| Scheduled execution | Cron Jobs | vercel.json schedule config |
+| Scheduled execution (cron or one-time) | Vercel Schedules (`schedules` in vercel.json, `@vercel/schedules`) | Private function, path, or queue targets; timezones; per-environment state; replaces Cron Jobs |
+| Background jobs, buffering, fan-out to consumers | Vercel Queues (`@vercel/queue`) | Durable topics, at-least-once delivery, retries; Workflows for multi-step logic |
+| Always-on worker (queue consumer, Celery/Sidekiq/BullMQ, job runner) | Vercel Daemons (`daemons` in vercel.json) | Dockerfile-built, fixed instances per region, no inbound traffic; beta, production only |
 
 ### Disambiguation: Interception Compute
 
-These three mechanisms all intercept or handle requests before your application logic runs.
+These mechanisms all intercept or handle requests before your application logic runs.
 Choose based on **where** the interception happens and **what** you need to do.
 
 | Mechanism                                                 | Layer                                       | Runtime                         | Use When                                                                                              | Avoid When                                                                      |
 | --------------------------------------------------------- | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Routing Middleware** (`middleware.ts` / platform-level) | Edge Network, before cache                  | V8 isolates (Web Standard APIs) | Auth checks, geo-redirects, A/B routing, header rewriting — any framework                             | You need Node.js APIs, heavy computation, or database access                    |
+| **Routing Middleware** (`proxy.entrypoint` in vercel.json or `middleware.ts`) | Vercel CDN, before cache                    | Node.js or Python (`proxy` entrypoint; must match the app's runtime), Bun (`bunVersion` in vercel.json), or Edge (`middleware.ts` default; `runtime: 'nodejs'` to switch) | Geo-redirects, A/B routing, header rewriting, defense-in-depth auth checks — any framework            | Heavy computation, database access, or auth as the sole protection layer        |
 | **`proxy.ts`** (Next.js 16+)                              | Application layer, replaces `middleware.ts` | Node.js                         | Same use cases as Routing Middleware but you need `node:*` modules, ORM calls, or full Node.js compat | You're not on Next.js 16+; prefer Routing Middleware for non-Next.js frameworks |
-| **Edge Functions**                                        | Edge Network, handles the full request      | V8 isolates (Web Standard APIs) | Ultra-low-latency API endpoints, simple compute at the edge, streaming responses                      | You need Node.js runtime, long execution times, or large dependencies           |
+| **Vercel Functions**                                      | Handles the full request                    | Node.js (default), Bun, Python, Rust | API endpoints, streaming and SSE responses, WebSockets, background work with `waitUntil`                   | Rewrites or redirects that must run before the cache (use Routing Middleware)   |
 
-> **Key distinction**: Routing Middleware and `proxy.ts` are _interceptors_ — they rewrite, redirect, or annotate requests before the handler runs. Edge Functions _are_ the handler — they produce the response. If you previously used Next.js `middleware.ts` and are upgrading to Next.js 16, rename to `proxy.ts` (see § Migration Awareness).
+> **Key distinction**: Routing Middleware and `proxy.ts` are _interceptors_ — they rewrite, redirect, or annotate requests before the handler runs. Vercel Functions _are_ the handler — they produce the response. If you previously used Next.js `middleware.ts` and are upgrading to Next.js 16, rename to `proxy.ts` (see § Migration Awareness).
 
 ⤳ skill: routing-middleware — Platform-level request interception
-⤳ skill: vercel-functions — Edge Functions and Serverless Functions
-⤳ skill: nextjs — `proxy.ts` in Next.js 16
+⤳ skill: vercel-functions — Vercel Functions runtimes, streaming, and Fluid Compute
+📖 Next.js bundled docs (`node_modules/next/dist/docs/`) — `proxy.ts` in Next.js 16
 
 ### Disambiguation: Caching Layers
 
@@ -726,13 +769,13 @@ Three distinct caching systems serve different purposes. They can be used indepe
 | Mechanism                                                                          | Scope                                         | Invalidation                                                                       | Use When                                                                                                            | Avoid When                                                                                                              |
 | ---------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **Next.js Cache** (`'use cache'`, `revalidate`, `revalidatePath/Tag`)              | Per-route or per-component, framework-managed | Time-based (`revalidate: N`), on-demand (`revalidateTag()`, `revalidatePath()`)    | Caching rendered pages, component trees, or data fetches within a Next.js app                                       | You need caching outside Next.js, or need to cache arbitrary key-value data                                             |
-| **Runtime Cache** (Vercel platform, per-region KV)                                 | Per-region key-value store, any framework     | Tag-based (`purgeByTag()`), key-based (`delete()`)                                 | Caching expensive computations, API responses, or shared data across functions — works with any framework on Vercel | You only need page-level caching (use Next.js Cache instead); you need global consistency (Runtime Cache is per-region) |
-| **CDN Cache + Purge-by-Tag** (Edge Network, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL, on-demand purge via `vercel cache purge --type cdn` | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
+| **Runtime Cache** (Vercel platform, per-region KV)                                 | Per-region key-value store, any framework     | Tag-based (`expireTag()`), key-based (`delete()`)                                 | Caching expensive computations, API responses, or shared data across functions — works with any framework on Vercel | You only need page-level caching (use Next.js Cache instead); you need global consistency (Runtime Cache is per-region) |
+| **CDN Cache + Purge-by-Tag** (Vercel CDN, `Cache-Control` + `Cache-Tag` headers) | Global CDN edge, HTTP-level                   | `Cache-Control` TTL; `invalidateByTag()` / `vercel cache invalidate --tag` (stale-while-revalidate) or `dangerouslyDeleteByTag()` (hard delete); `vercel cache purge --type cdn` for everything | Static assets, ISR pages, any HTTP response you want cached globally at the edge                                    | Dynamic per-user content, responses that must never be stale                                                            |
 
 > **Layering pattern**: A typical Next.js app uses all three — Next.js Cache for component/route-level freshness, Runtime Cache for shared cross-request data (e.g., product catalog), and CDN Cache for static assets and ISR pages. Each layer has its own invalidation strategy; tag-based invalidation can cascade across layers when configured.
 
 ⤳ skill: runtime-cache — Per-region key-value caching with tag-based invalidation
-⤳ skill: nextjs — `'use cache'`, `revalidatePath`, `revalidateTag`
+📖 Next.js bundled docs (`node_modules/next/dist/docs/`) — `'use cache'`, `revalidatePath`, `revalidateTag`
 ⤳ skill: cdn-caching — Diagnose cache hit rate, stale content, per-request cache reasons, and ISR read/write cost
 
 ---
@@ -754,7 +797,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
                         → Vercel Functions (streaming) → vercel deploy
 ```
 
-**OIDC Authentication (default):** When you run `vercel env pull`, it provisions a `VERCEL_OIDC_TOKEN` — a short-lived JWT that the AI Gateway uses automatically. No manual API keys needed. The `@ai-sdk/gateway` package reads `VERCEL_OIDC_TOKEN` from the environment via `@vercel/oidc`. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (~24h).
+**OIDC Authentication (default):** When you run `vercel env pull`, it provisions a `VERCEL_OIDC_TOKEN` — a short-lived JWT that the AI Gateway uses automatically. No manual API keys needed. The `@ai-sdk/gateway` package reads `VERCEL_OIDC_TOKEN` from the environment via `@vercel/oidc`. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (12h).
 
 ```
 
@@ -778,10 +821,10 @@ Three distinct caching systems serve different purposes. They can be used indepe
 ```
 1. Choose the architecture boundary:
    - New filesystem-first agent or agent-powered app → eve
-   - Existing app/agent that needs durable orchestration → Workflow SDK `DurableAgent`
+   - Existing app/agent that needs durable orchestration → `WorkflowAgent` from `@ai-sdk/workflow` on Workflow SDK 5 (`workflow@latest`)
 2. eve path: npx eve@latest init <agent-name> → read node_modules/eve/docs/README.md
              → author instructions, tools, skills, connections, channels, and optional frontend client
-3. Workflow path: Next.js Route Handler → DurableAgent → AI SDK tools → AI Gateway
+3. Workflow path: Next.js Route Handler → WorkflowAgent → AI SDK tools → AI Gateway
 4. vercel link → enable AI Gateway → vercel env pull → verify sessions, streaming, retries, and approvals
 ```
 
@@ -794,7 +837,7 @@ Next.js (App Router) → Neon Postgres (data) → Clerk (auth, via Marketplace)
 
 ```
 
-**Starter kit**: Use `npx next-forge@latest init` to scaffold a production-ready SaaS monorepo with all of the above pre-wired (plus email, observability, security, AI, i18n, and more). ⤳ skill: next-forge
+**Starter kit**: Use `npx next-forge@latest init` to scaffold a production-ready SaaS monorepo with all of the above pre-wired (plus email, observability, security, AI, i18n, and more).
 
 **Clerk integration gotchas**:
 - `vercel integration add clerk` requires terms acceptance in the terminal (AI agents are blocked — user must run it manually)
@@ -827,17 +870,18 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 | Deprecated | Replacement | Migration Path |
 |-----------|-------------|----------------|
-| `@vercel/postgres` | `@neondatabase/serverless` | Use `@neondatabase/vercel-postgres-compat` for drop-in |
+| `@vercel/postgres` | `@neondatabase/serverless` | Switch queries to `neon()` from `@neondatabase/serverless` |
 | `@vercel/kv` | `@upstash/redis` | Same billing, direct replacement |
 | `middleware.ts` (Next.js 16) | `proxy.ts` | Rename file, Node.js runtime only |
 | `experimental.turbopack` | `turbopack` (top-level) | Move config in next.config |
 | Sync Request APIs (Next.js 16) | Async Request APIs | `await cookies()`, `await headers()`, etc. |
 | PPR (Next.js 15 canary) | Cache Components | Follow Vercel migration guide |
 | AI SDK 5 | AI SDK 6 | Run `npx @ai-sdk/codemod v6` |
+| AI SDK 6 | AI SDK 7 | Node.js 22+, ESM only; run the v7 codemods (`npx skills add vercel/ai --skill migrate-ai-sdk-v6-to-v7`), `stepCountIs` → `isStepCount`, `system` → `instructions`, `DurableAgent` → `WorkflowAgent` (`@ai-sdk/workflow` 2.x requires Workflow 5, `workflow@latest`) |
 | `generateObject` / `streamObject` | `generateText` / `streamText` + `Output.object()` | Unified structured output API |
 | `parameters` (AI SDK tools) | `inputSchema` | Aligned with MCP spec |
 | `result` (AI SDK tools) | `output` | Aligned with MCP spec |
-| `maxSteps` (AI SDK) | `stopWhen: stepCountIs(N)` | Import `stepCountIs` from `ai` |
+| `maxSteps` (AI SDK) | `stopWhen: isStepCount(N)` | Import `isStepCount` from `ai` (`stepCountIs` in AI SDK 6) |
 | `CoreMessage` | `ModelMessage` | Use `convertToModelMessages()` |
 | `Experimental_Agent` | `ToolLoopAgent` | `system` → `instructions` |
 | `useChat({ api })` | `useChat({ transport: new DefaultChatTransport({ api }) })` | v6 transport pattern |
@@ -848,12 +892,11 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | `agent.generateText()` | `agent.generate()` | Simplified Agent API |
 | `agent.streamText()` | `agent.stream()` | Simplified Agent API |
 | `isLoading` (useChat) | `status === "streaming" \|\| status === "submitted"` | v6 status enum |
-| `onResponse()` callback | Transport configuration | Removed in v6 |
+| `onResponse()` callback | Transport configuration | Removed in AI SDK 5 |
 | `body` option (useChat) | Pass data through transport | v6 transport pattern |
 | DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
 | `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
 | `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
-| `experimental_createWorkflow` | `createWorkflow()` (stable) | Workflow SDK API stabilized |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
 | `next export` | `output: "export"` in next.config | CLI command removed |
@@ -884,21 +927,21 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - Prefer `next/image` for images and `next/font` for fonts — both optimize automatically on Vercel.
 - `@vercel/postgres` and `@vercel/kv` are sunset — use `@neondatabase/serverless` and `@upstash/redis`.
 
-### AI SDK v6
+### AI SDK 7
 
 - **Default to AI Gateway** — pass `"provider/model"` strings directly (e.g., `model: 'anthropic/claude-sonnet-4.6'`) — they route through the AI Gateway automatically. The `gateway()` wrapper from `'ai'` is optional and only needed when using `providerOptions.gateway` for routing/failover/tags. Do NOT install or import direct provider SDKs (`@ai-sdk/anthropic`, `@ai-sdk/openai`, etc.) unless you need provider-specific features not exposed through the gateway.
 - **Install `@ai-sdk/react` for React hooks** — `useChat`, `useCompletion`, and `useObject` live in `@ai-sdk/react` (not `ai`). Always `npm install ai @ai-sdk/react` together for React/Next.js projects.
-- **OIDC is the default auth for AI Gateway** — when you run `vercel env pull`, it provisions `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically via `@vercel/oidc`. No `AI_GATEWAY_API_KEY` or provider-specific API keys needed. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (~24h).
+- **OIDC is the default auth for AI Gateway** — when you run `vercel env pull`, it provisions `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically via `@vercel/oidc`. No `AI_GATEWAY_API_KEY` or provider-specific API keys needed. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (12h).
 - **For AI projects, set up a Vercel project first** — run `vercel link` (or create via dashboard) → enable AI Gateway in dashboard → `vercel env pull` to get OIDC credentials locally. Do NOT manually create `.env.local` with provider-specific API keys like `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 - **AI Elements is MANDATORY for all AI-generated text** — `npx ai-elements@latest` must be installed immediately after scaffolding. Never render AI text as raw `{text}` or `<p>{content}</p>` — it shows ugly `**`, `##`, `---`. Use `<Message>` for chat with `useChat`, and `<MessageResponse>` (from `@/components/ai-elements/message`) for any other AI markdown (workflow events, reports, briefings, notifications, email previews). `<MessageResponse>` wraps Streamdown with code highlighting, math, mermaid, and CJK plugins.
-- **Server-side: use `convertToModelMessages()` (async) + `toUIMessageStreamResponse()`** — not `toDataStreamResponse()`. Client-side: use `DefaultChatTransport` with `useChat`, not the v5 `api` parameter.
+- **Server-side: use `convertToModelMessages()` (async) + `toUIMessageStreamResponse()`** — not `toDataStreamResponse()`. Client-side: use `DefaultChatTransport` with `useChat`, not the v4 `api` parameter.
 - Use `inputSchema` (not `parameters`) and `output`/`outputSchema` (not `result`) for tool definitions — aligned with MCP spec.
 - Always stream for user-facing AI: use `streamText` + `useChat`, not `generateText`.
-- `generateObject` and `streamObject` are removed in v6 — use `generateText` / `streamText` with `Output.object()` instead.
-- **`maxSteps` was removed** — use `stopWhen: stepCountIs(N)` (import `stepCountIs` from `ai`) for multi-step tool calling in both `streamText` and the `Agent` class.
+- `generateObject` and `streamObject` are deprecated since AI SDK 6 — use `generateText` / `streamText` with `Output.object()` instead.
+- **`maxSteps` was removed** — use `stopWhen: isStepCount(N)` (import `isStepCount` from `ai`; named `stepCountIs` in AI SDK 6) for multi-step tool calling in both `streamText` and the `Agent` class.
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
-- Use `DurableAgent` from `@workflow/ai/agent` for production agents that must survive crashes.
-- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `experimental_generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
+- Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@latest`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
+- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
 - **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image-preview`; DALL-E 2/3 → use Gemini 3.1 Flash Image Preview.
 - Use `@ai-sdk/mcp` (stable, not experimental) for MCP server connections.
 - Use `mcp-to-ai-sdk` CLI to generate static tool definitions from MCP servers for security.
@@ -910,7 +953,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - Add `.env*.local` to `.gitignore` — these files contain pulled secrets.
 - Use Fluid Compute for long-running functions — extends max duration to 800s on paid plans.
 - Use `waitUntil` (or `after` in Next.js) for background work after sending a response.
-- Configure cron jobs in `vercel.json` and verify with `CRON_SECRET` header.
+- Schedule recurring or one-time work with Vercel Schedules (`schedules` in `vercel.json`, private `function` targets; ⤳ skill: vercel-schedules). Cron Jobs are legacy: existing `crons` keep working (verify them with a `CRON_SECRET` check); migrate them to Schedules.
 - Use `vercel deploy --prebuilt` in CI for fastest deploys (separate build from deploy).
 - For monorepos, use Turborepo with remote caching and `--affected` for efficient CI.
 
@@ -918,6 +961,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### Next.js and Rendering
 
+- Read the version-matched docs in `node_modules/next/dist/docs/` before writing Next.js code; they override remembered APIs. On Next.js 16.1 or earlier, run `npx @next/codemod@canary agents-md` to fetch them.
 - Default to Next.js App Router and Server Components; add `'use client'` only where interactivity is required.
 - Use `proxy.ts` instead of `middleware.ts` in Next.js 16 and keep proxy logic focused on interception, auth gates, rewrites, and redirects.
 - Prefer Cache Components, `next/image`, and `next/font` over custom rendering/caching/font-loading workarounds.
@@ -925,7 +969,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### AI Stack
 
-- Default to AI SDK v6 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
+- Default to AI SDK 7 plus AI Gateway model strings (`provider/model`) rather than direct provider SDK wiring.
 - Consider eve when the user is creating or architecting a new durable agent or agent-powered application; propose it as a framework candidate before installing or scaffolding it.
 - Use eve for the complete filesystem-first agent runtime and clients, AI SDK for embedded model/agent loops, and Workflow SDK when existing application logic primarily needs durable orchestration.
 - Use `@ai-sdk/react` for React hooks and keep user-facing AI experiences streaming-first.
@@ -955,7 +999,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### Workflow and Durability
 
-- Use Workflow SDK and DurableAgent when the task needs retries, resumability, crash recovery, or long-lived orchestration.
+- Use Workflow SDK when the task needs retries, resumability, crash recovery, or long-lived orchestration; for durable agents, `WorkflowAgent` needs Workflow 5 (`workflow@latest`).
 - Prefer eve when those requirements are part of a new agent application that also needs a structured home for instructions, tools, skills, connections, channels, sandboxes, subagents, schedules, evals, or frontend clients.
 - Prefer workflow steps over ad-hoc retry loops, timers, and manual state persistence in request handlers.
 - Keep workflow recommendations limited to durable execution problems; do not route ordinary request/response code into workflow patterns by default.
@@ -969,13 +1013,16 @@ This document is part of the **Vercel plugin for Claude Code**. The plugin uses 
 
 ### SessionStart — Baseline injection
 
-On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook injects a thin Vercel session context plus the `knowledge-update` skill. The full ecosystem graph in `vercel.md` is no longer injected wholesale at session start.
+On every session event (`startup`, `resume`, `clear`, `compact`), the `inject-claude-md.mjs` hook injects a thin Vercel session context plus the `knowledge-update` skill. Claude Code caps each hook's output at 10,000 characters, so the hook splits this context at `##` sections into parts of at most 9,000 characters, and `hooks.json` runs it once per part. The full ecosystem graph in `vercel.md` is no longer injected wholesale at session start.
 
 Deeper `vercel.md` guidance is now loaded later in small topic chunks when prompt or tool-time skill matching shows it is relevant. Chunking is deduped per session so the same Vercel topic is not repeated on every prompt.
 
 **Hook config** (`hooks/hooks.json`):
 ```json
-"SessionStart": [{ "matcher": "startup|resume|clear|compact", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\"" }] }]
+"SessionStart": [{ "matcher": "startup|resume|clear|compact", "hooks": [
+  { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 1/2" },
+  { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 2/2" }
+] }]
 ````
 
 ### PreToolUse — Skill-map matching

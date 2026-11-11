@@ -15,12 +15,6 @@ import {
 const ROOT = resolve(import.meta.dirname, "..");
 const SKILLS_DIR = join(ROOT, "skills");
 
-function readSkillFrontmatter(skillDir: string): string {
-  return extractFrontmatter(
-    readFileSync(join(SKILLS_DIR, skillDir, "SKILL.md"), "utf-8"),
-  ).yaml;
-}
-
 /**
  * Count the number of skill directories that contain a SKILL.md file.
  * Used as the ground-truth expected count so tests don't break when
@@ -35,6 +29,25 @@ function countSkillDirs(): number {
     }
   }).length;
 }
+
+describe("skill frontmatter portability", () => {
+  test("all skill frontmatter is valid standard YAML", () => {
+    const invalidSkills: string[] = [];
+
+    for (const skillDir of readdirSync(SKILLS_DIR)) {
+      const skillPath = join(SKILLS_DIR, skillDir, "SKILL.md");
+      if (!existsSync(skillPath)) continue;
+
+      try {
+        Bun.YAML.parse(extractFrontmatter(readFileSync(skillPath, "utf-8")).yaml);
+      } catch (error) {
+        invalidSkills.push(`${skillDir}: ${String(error)}`);
+      }
+    }
+
+    expect(invalidSkills).toEqual([]);
+  });
+});
 
 // ─── Migration regression: skill-map.json must not exist ─────────
 
@@ -233,31 +246,6 @@ describe("parseSkillFrontmatter", () => {
     const result = parseSkillFrontmatter(yamlStr);
     expect(result.validate).toEqual([]);
   });
-
-  test("parses skills/next-forge frontmatter with nested promptSignals arrays", () => {
-    const result = parseSkillFrontmatter(readSkillFrontmatter("next-forge"));
-
-    expect(result.name).toBe("next-forge");
-    expect(result.summary).toContain("skill:next-forge");
-    expect(result.metadata.promptSignals).toEqual({
-      phrases: ["next-forge", "next forge", "@repo/"],
-      allOf: [
-        ["monorepo", "saas", "starter"],
-        ["turborepo", "clerk", "stripe"],
-      ],
-      anyOf: ["saas starter", "production monorepo", "keys.ts", "pnpm-workspace"],
-      noneOf: ["create-t3-app"],
-      minScore: 6,
-    });
-  });
-
-  test("quotes @repo/* in next-forge YAML frontmatter for standard YAML parser compatibility", () => {
-    const overlay = readFileSync(join(SKILLS_DIR, "next-forge", "overlay.yaml"), "utf-8");
-    const frontmatter = readSkillFrontmatter("next-forge");
-
-    expect(overlay).toContain(`- '@repo/*'`);
-    expect(frontmatter).toContain(`- '@repo/*'`);
-  });
 });
 
 // ─── scanSkillsDir ────────────────────────────────────────────────
@@ -269,7 +257,7 @@ describe("scanSkillsDir", () => {
     expect(skills.length).toBe(expected);
     // Assert on directory-based identity (canonical key), not frontmatter name
     const dirs = skills.map((s) => s.dir);
-    expect(dirs).toContain("nextjs");
+    expect(dirs).toContain("routing-middleware");
     expect(dirs).toContain("vercel-storage");
     expect(dirs).toContain("ai-sdk");
   });
@@ -358,23 +346,6 @@ describe("scanSkillsDir", () => {
   });
 });
 
-describe("buildSkillMap repo regressions", () => {
-  test("builds next-forge without frontmatter diagnostics", () => {
-    const result = buildSkillMap(SKILLS_DIR);
-    const normalizedDiagnosticFiles = result.diagnostics.map((diagnostic) =>
-      diagnostic.file.replaceAll("\\", "/"),
-    );
-
-    expect(normalizedDiagnosticFiles).not.toContain(
-      `${SKILLS_DIR.replaceAll("\\", "/")}/next-forge/SKILL.md`,
-    );
-    expect(result.skills["next-forge"].promptSignals?.allOf).toEqual([
-      ["monorepo", "saas", "starter"],
-      ["turborepo", "clerk", "stripe"],
-    ]);
-  });
-});
-
 // ─── buildSkillMap ────────────────────────────────────────────────
 
 describe("buildSkillMap", () => {
@@ -411,14 +382,14 @@ describe("buildSkillMap", () => {
     }
   });
 
-  test("nextjs skill matches expected values from frontmatter", () => {
+  test("routing-middleware skill matches expected values from frontmatter", () => {
     const map = buildSkillMap(SKILLS_DIR);
-    const nextjs = map.skills["nextjs"];
-    expect(nextjs).toBeDefined();
-    expect(nextjs.priority).toBe(5);
-    expect(nextjs.pathPatterns).toContain("next.config.*");
-    expect(nextjs.pathPatterns).toContain("app/**");
-    expect(nextjs.bashPatterns.length).toBeGreaterThan(0);
+    const routing = map.skills["routing-middleware"];
+    expect(routing).toBeDefined();
+    expect(routing.priority).toBe(6);
+    expect(routing.pathPatterns).toContain("middleware.ts");
+    expect(routing.pathPatterns).toContain("proxy.ts");
+    expect(routing.bashPatterns.length).toBeGreaterThan(0);
   });
 
   test("skill count matches number of SKILL.md directories", () => {
@@ -431,14 +402,14 @@ describe("buildSkillMap", () => {
   test("invariant: expected representative skills present with correct patterns", () => {
     const map = buildSkillMap(SKILLS_DIR);
     // Spot-check key skills
-    expect(map.skills["nextjs"]).toBeDefined();
+    expect(map.skills["routing-middleware"]).toBeDefined();
     expect(map.skills["vercel-cli"]).toBeDefined();
     expect(map.skills["ai-sdk"]).toBeDefined();
     expect(map.skills["vercel-storage"]).toBeDefined();
 
-    // nextjs should have app/** and next.config.* patterns
-    expect(map.skills["nextjs"].pathPatterns).toContain("app/**");
-    expect(map.skills["nextjs"].pathPatterns).toContain("next.config.*");
+    // routing-middleware should have middleware.ts and vercel.json patterns
+    expect(map.skills["routing-middleware"].pathPatterns).toContain("middleware.ts");
+    expect(map.skills["routing-middleware"].pathPatterns).toContain("vercel.json");
 
     // vercel-cli should have a bash pattern for vercel commands
     expect(map.skills["vercel-cli"].bashPatterns.length).toBeGreaterThan(0);
@@ -446,9 +417,9 @@ describe("buildSkillMap", () => {
 
   test("backslash sequences preserved in bash patterns", () => {
     const map = buildSkillMap(SKILLS_DIR);
-    const nextjs = map.skills["nextjs"];
+    const vercelCli = map.skills["vercel-cli"];
     // Should contain literal \b not a backspace character
-    const hasWordBoundary = nextjs.bashPatterns.some((p: string) => p.includes("\\b"));
+    const hasWordBoundary = vercelCli.bashPatterns.some((p: string) => p.includes("\\b"));
     expect(hasWordBoundary).toBe(true);
   });
 

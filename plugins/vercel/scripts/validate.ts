@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Structural validation for the Vercel ecosystem plugin.
- * Checks cross-references, frontmatter, manifest completeness, and hooks validity.
+ * Checks cross-references, skill frontmatter, plugin configuration, and hooks validity.
  *
  * Usage: bun run scripts/validate.ts [options]
  *   --format pretty|json   Output format (default: pretty)
@@ -17,7 +17,6 @@ import { parseArgs } from "node:util";
 import { checkCoverage, type CoverageResult } from "./coverage-baseline";
 import { extractFrontmatter, parseSkillFrontmatter, buildSkillMap, validateSkillMap } from "../hooks/skill-map-frontmatter.mjs";
 import { globToRegex, importPatternToRegex, compileSkillPatterns, matchPathWithReason, matchBashWithReason } from "../hooks/patterns.mjs";
-import { buildManifest, writeManifestFile } from "./build-manifest";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -193,6 +192,53 @@ async function validateGraphSkillRefs() {
       });
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// 1a. Validate ⤳ skill: references in templates and plugin-owned skills
+// ---------------------------------------------------------------------------
+
+async function pluginSourceFiles(): Promise<string[]> {
+  const files: string[] = [];
+  for (const dir of ["agents", "commands"]) {
+    if (!(await exists(join(ROOT, dir)))) continue;
+    for (const name of (await readdir(join(ROOT, dir))).sort()) {
+      if (name.endsWith(".md.tmpl")) files.push(`${dir}/${name}`);
+    }
+  }
+  for (const skill of (await readdir(join(ROOT, "skills"))).sort()) {
+    const skillDir = join(ROOT, "skills", skill);
+    if (await exists(join(skillDir, "upstream"))) continue;
+    if (await exists(join(skillDir, "SKILL.md"))) files.push(`skills/${skill}/SKILL.md`);
+    if (!(await exists(join(skillDir, "references")))) continue;
+    for (const name of (await readdir(join(skillDir, "references"))).sort()) {
+      if (name.endsWith(".md")) files.push(`skills/${skill}/references/${name}`);
+    }
+  }
+  return files;
+}
+
+async function validateTemplateSkillRefs() {
+  section("[1a] Template and skill → skill cross-references");
+
+  const files = await pluginSourceFiles();
+  let refCount = 0;
+  let broken = 0;
+  for (const file of files) {
+    const content = await readFile(join(ROOT, file), "utf-8");
+    for (const m of content.matchAll(/⤳\s*skill:\s*([a-z][a-z0-9-]*)/g)) {
+      const name = m[1];
+      refCount++;
+      if (await exists(join(ROOT, "skills", name, "SKILL.md"))) continue;
+      broken++;
+      fail("SKILL_REF_BROKEN", `⤳ skill:${name} referenced in ${file} but skills/${name}/SKILL.md not found`, {
+        file,
+        line: lineOf(content, m[0]),
+        hint: `Point the reference at an existing skill or create skills/${name}/SKILL.md`,
+      });
+    }
+  }
+  if (broken === 0) pass(`${refCount} ⤳ skill: references across ${files.length} files resolve`);
 }
 
 // ---------------------------------------------------------------------------
@@ -973,66 +1019,11 @@ async function validatePatternCompilation() {
 }
 
 // ---------------------------------------------------------------------------
-// 10. Validate skill catalog is not stale vs skills/ directory
-// ---------------------------------------------------------------------------
-
-async function validateCatalogStaleness() {
-  section("[10] Skill catalog staleness");
-
-  const catalogPath = join(ROOT, "generated", "skill-catalog.md");
-  if (!(await exists(catalogPath))) {
-    fail("CATALOG_MISSING", "generated/skill-catalog.md not found", {
-      file: "generated/skill-catalog.md",
-      hint: "Run: bun run scripts/generate-catalog.ts",
-    });
-    return;
-  }
-
-  const catalog = await readFile(catalogPath, "utf-8");
-
-  // Extract skill slugs from the catalog Skill Index table only
-  // The table starts after "## Skill Index" and ends before the next "##" heading
-  const indexMatch = catalog.match(/## Skill Index\n[\s\S]*?\n\|[-|\s]+\|\n([\s\S]*?)(?:\n##|\n$)/);
-  const indexSection = indexMatch ? indexMatch[1] : "";
-  const catalogSlugs = new Set(
-    [...indexSection.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]),
-  );
-
-  // Get current skills from the skills/ directory
-  const skillsDir = join(ROOT, "skills");
-  const built = buildSkillMap(skillsDir);
-  const currentSlugs = new Set(Object.keys(built.skills));
-
-  // Check for missing skills (in skills/ but not in catalog)
-  const missing = [...currentSlugs].filter((s) => !catalogSlugs.has(s));
-  // Check for stale skills (in catalog but not in skills/)
-  const stale = [...catalogSlugs].filter((s) => !currentSlugs.has(s));
-
-  if (missing.length > 0) {
-    fail("CATALOG_STALE", `Skill catalog is missing ${missing.length} skill(s): ${missing.join(", ")}`, {
-      file: "generated/skill-catalog.md",
-      hint: "Run: bun run scripts/generate-catalog.ts to regenerate",
-    });
-  }
-
-  if (stale.length > 0) {
-    fail("CATALOG_STALE", `Skill catalog has ${stale.length} stale skill(s) no longer in skills/: ${stale.join(", ")}`, {
-      file: "generated/skill-catalog.md",
-      hint: "Run: bun run scripts/generate-catalog.ts to regenerate",
-    });
-  }
-
-  if (missing.length === 0 && stale.length === 0) {
-    pass(`Skill catalog lists all ${currentSlugs.size} skills (up to date)`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 11. Validate profiler skill slugs map to real skills
+// 10. Validate profiler skill slugs map to real skills
 // ---------------------------------------------------------------------------
 
 async function validateProfilerSkillSlugs() {
-  section("[11] Session-start profiler → skill slug cross-references");
+  section("[10] Session-start profiler → skill slug cross-references");
 
   const profilerPath = join(ROOT, "hooks", "session-start-profiler.mjs");
   if (!(await exists(profilerPath))) {
@@ -1104,7 +1095,7 @@ async function validateProfilerSkillSlugs() {
 }
 
 // ---------------------------------------------------------------------------
-// 12. Pattern fixture dry-run — assert expected skill matches
+// 11. Pattern fixture dry-run — assert expected skill matches
 // ---------------------------------------------------------------------------
 
 interface PatternFixture {
@@ -1115,7 +1106,7 @@ interface PatternFixture {
 }
 
 async function validatePatternFixtures() {
-  section("[12] Pattern fixture dry-run");
+  section("[11] Pattern fixture dry-run");
 
   const fixturesPath = join(ROOT, "tests", "fixtures", "pattern-fixtures.json");
   if (!(await exists(fixturesPath))) {
@@ -1203,10 +1194,65 @@ const CHECK_LABELS: Record<string, string> = {
   cliBannedPatterns: "CLI banned-pattern scan",
   preToolUseHook: "PreToolUse hook and skill coverage",
   patternCompilation: "Pattern compilation",
-  catalogStaleness: "Skill catalog staleness",
   profilerSkillSlugs: "Profiler skill slug cross-references",
   patternFixtures: "Pattern fixture dry-run",
+  templateSkillRefs: "Template and skill → skill cross-references",
+  vercelJsonExamples: "vercel.json examples → published schema keys",
 };
+
+// ---------------------------------------------------------------------------
+// 12. Validate vercel.json examples against the published schema's top-level keys
+// ---------------------------------------------------------------------------
+
+async function validateVercelJsonExamples() {
+  section("[12] vercel.json examples → published schema keys");
+
+  const keysFile = "scripts/vercel-json-top-level-keys.json";
+  const { source, keys } = JSON.parse(await readFile(join(ROOT, keysFile), "utf-8")) as {
+    source: string;
+    keys: string[];
+  };
+  const allowed = new Set(keys);
+
+  let examples = 0;
+  let problems = 0;
+  for (const file of await pluginSourceFiles()) {
+    const content = await readFile(join(ROOT, file), "utf-8");
+    for (const m of content.matchAll(/^[ \t]*```jsonc?\b([^\n]*)\n([\s\S]*?)^[ \t]*```/gm)) {
+      const [, info, body] = m;
+      if (!info.includes('filename="vercel.json"') && !body.includes("openapi.vercel.sh/vercel.json")) continue;
+      examples++;
+      const line = content.slice(0, m.index).split("\n").length;
+      let config: unknown;
+      try {
+        config = JSON.parse(body);
+      } catch (err: any) {
+        problems++;
+        fail("VERCEL_JSON_EXAMPLE_INVALID", `vercel.json example in ${file} is not valid JSON: ${err.message}`, {
+          file,
+          line,
+          hint: "vercel.json allows no comments or placeholders; show a complete object",
+        });
+        continue;
+      }
+      if (typeof config !== "object" || config === null || Array.isArray(config)) {
+        problems++;
+        fail("VERCEL_JSON_EXAMPLE_INVALID", `vercel.json example in ${file} is not a JSON object`, { file, line });
+        continue;
+      }
+      for (const key of Object.keys(config)) {
+        if (allowed.has(key)) continue;
+        problems++;
+        fail("VERCEL_JSON_UNKNOWN_KEY", `vercel.json example in ${file} uses "${key}", which ${source} does not define`, {
+          file,
+          line,
+          hint: `Remove "${key}", or refresh ${keysFile} from ${source} if the schema added it`,
+        });
+      }
+    }
+  }
+  if (problems === 0) pass(`${examples} vercel.json examples use published top-level keys`);
+}
 
 async function timed<T>(name: string, fn: () => Promise<T>): Promise<T> {
   currentCheck = name;
@@ -1234,6 +1280,7 @@ async function main() {
   }
 
   await timed("graphSkillRefs", () => validateGraphSkillRefs());
+  await timed("templateSkillRefs", () => validateTemplateSkillRefs());
   await timed("orphanSkills", () => validateOrphanSkills());
   await timed("skillFrontmatter", () => validateSkillFrontmatter());
   await timed("pluginJson", () => validatePluginJson());
@@ -1243,23 +1290,12 @@ async function main() {
   await timed("cliBannedPatterns", () => validateCliBannedPatterns());
   await timed("preToolUseHook", () => validatePreToolUseHook());
   await timed("patternCompilation", () => validatePatternCompilation());
-  await timed("catalogStaleness", () => validateCatalogStaleness());
   await timed("profilerSkillSlugs", () => validateProfilerSkillSlugs());
   await timed("patternFixtures", () => validatePatternFixtures());
+  await timed("vercelJsonExamples", () => validateVercelJsonExamples());
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;
-
-  // Generate skill-manifest.json when validation passes (no errors)
-  if (errorCount === 0) {
-    const { manifest, errors: manifestErrors } = buildManifest(join(ROOT, "skills"));
-    if (manifestErrors.length === 0) {
-      const count = writeManifestFile(manifest);
-      if (FORMAT === "pretty") {
-        console.log(`\n✓ Generated skill-manifest.json (${count} skills)`);
-      }
-    }
-  }
 
   if (FORMAT === "json") {
     const report: ValidationReport = {
