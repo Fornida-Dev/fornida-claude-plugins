@@ -4,6 +4,8 @@
 
 `ce-noslop` is the plugin's writing skill. It holds two goals at equal weight: the text carries no AI writing patterns, and a person understands it on the first read. Technical writing is included; a PR body, a plan section, a review finding, and a chat reply all get the same tests. Text that is free of tells but still dense has failed. Text that is plain but dropped a qualifier has failed too.
 
+It preserves technical terms needed for precision and explains unfamiliar ones when the reader needs them. Internal workflow jargon is rewritten as the action or consequence it means. Exact identifiers and required status tokens stay intact.
+
 Other skills invoke it where they compose prose. You invoke it directly when you want a draft checked, rewritten, or written from content you supply. Either way the rules are the same; mode and register change the shape of the output, never which rules apply.
 
 It is not `ce-promote` (channel-specific announcement copy; that skill writes its own direct drafts through this one and presents Spiral-returned drafts as returned) and not `ce-doc-review` (findings on a plan's substance, not its sentences).
@@ -16,7 +18,7 @@ It is not `ce-promote` (channel-specific announcement copy; that skill writes it
 |----------|--------|
 | What does it do? | Rewrites, checks, or drafts prose under seven tests, without changing what the text says |
 | When to use it | You have text to fix or check, or content you want drafted plainly. Sibling skills call it on their own when they write |
-| What it produces | Edit: the rewritten text plus one line on what changed. Detect: each pattern found, with the quoted line and a short fix. Author: nothing returned; the tests hold while the caller writes |
+| What it produces | Edit: the rewritten text, with one line on what changed only when the caller asks for it. Detect: each pattern found, with the quoted line and a short fix. Author: nothing returned; the tests hold while the caller writes |
 | What's next | Nothing. It returns text or findings and stops |
 
 ---
@@ -46,10 +48,10 @@ A `mode:` token picks the mode. Without one: no draft means author; an imperativ
 | Mode | Chosen when | Returns |
 |------|-------------|---------|
 | **author** | No draft is supplied, or `mode:author` | Nothing. The tests load as constraints and the caller writes. When handed content and asked to write, the skill drafts it under the same tests |
-| **edit** | An imperative on a draft, or `mode:edit` | The rewritten text plus one line saying what changed. A second pass on the returned text changes nothing |
+| **edit** | An imperative on a draft, or `mode:edit` | The rewritten text. A second pass on the returned text changes nothing. One line saying what changed is added only when the caller asks for it, and stays outside the rewritten text and out of any artifact |
 | **detect** | A question about a draft, or `mode:detect` | Each pattern found, the quoted line, and the fix in a few words. No rewrite |
 
-Edit and detect read a pattern catalog bundled with the skill. Author mode uses the tests alone, and opens the catalog only for a passage the tests do not settle. On text that is not English, edit and detect apply the tests only and say the catalog did not apply.
+Edit and detect read a pattern catalog bundled with the skill. Author mode uses the tests alone, and opens the catalog only for a passage the tests do not settle. On text that is not English, edit and detect apply the tests only. The note that the catalog did not apply goes inside detect findings or inside a change line the caller asked for, and nowhere else.
 
 ---
 
@@ -67,10 +69,10 @@ Who reads the result decides the register. A caller's own interaction contract w
 
 Applied to every sentence: as constraints in author mode, as checks in edit and detect.
 
-1. **Mechanism.** Say what the thing does, not how it feels.
+1. **Mechanism.** Say what the thing does, not how it feels or what it is like.
 2. **Portability.** A sentence that could move to another project unchanged says nothing about this one.
 3. **Actor.** Name who does the verb. Passive stays only when the actor is unknown or does not matter.
-4. **One idea.** If the reader would backtrack, split the sentence.
+4. **One idea.** If the reader would backtrack or have to decode the sentence, split it or spell it out.
 5. **Density.** One device proves nothing. Three or more distinct patterns in a passage, or one repeated across passages, is a finding.
 6. **Decision first.** The first sentence carries the outcome the reader needs.
 7. **Reader.** Someone without the document or the code open can act on it. Gloss the identifier or name the consequence.
@@ -114,7 +116,7 @@ Sibling skills write their prose through `ce-noslop` at the point where they com
 - `ce-promote` for the announcement drafts it writes itself (Spiral-returned drafts are presented as returned)
 - `ce-resolve-pr-feedback` for replies posted as the PR author
 
-Skills with a presentation contract of their own (`ce-pov`, `ce-doc-review`, `ce-babysit-pr`) invoke `ce-noslop` before composing and keep only the rules specific to their output on top.
+Skills with a presentation contract of their own (`ce-pov`, `ce-doc-review`, `ce-babysit-pr`, `ce-help`) invoke `ce-noslop` before composing and keep only the rules specific to their output on top.
 
 Nothing runs after it. The skill returns text or findings and the caller continues.
 

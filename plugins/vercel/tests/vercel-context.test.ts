@@ -72,13 +72,10 @@ function createTestSession(): string {
 }
 
 describe("managed vercel context chunks", () => {
-  test("extracts a small nextjs chunk from vercel.md", () => {
-    const chunk = getManagedContextChunkForSkill("nextjs", { pluginRoot: ROOT });
-    expect(chunk).not.toBeNull();
-    expect(chunk?.chunkId).toBe("nextjs-platform");
-    expect(chunk?.wrapped).toContain("Default to Next.js App Router");
-    expect(chunk?.wrapped).toContain("vercel-context-chunk:nextjs-platform");
+  test("returns no managed context chunk for removed next-forge", () => {
+    expect(getManagedContextChunkForSkill("next-forge", { pluginRoot: ROOT })).toBeNull();
   });
+
 
   test("maps eve to the AI Stack context chunk", () => {
     const chunk = getManagedContextChunkForSkill("eve", { pluginRoot: ROOT });
@@ -95,11 +92,11 @@ describe("managed vercel context chunks", () => {
 
   test("deduplicates chunk claims per session", () => {
     const testSession = createTestSession();
-    const first = selectManagedContextChunk(["nextjs"], {
+    const first = selectManagedContextChunk(["ai-sdk"], {
       pluginRoot: ROOT,
       sessionId: testSession,
     });
-    const second = selectManagedContextChunk(["nextjs"], {
+    const second = selectManagedContextChunk(["ai-sdk"], {
       pluginRoot: ROOT,
       sessionId: testSession,
     });
@@ -111,20 +108,20 @@ describe("managed vercel context chunks", () => {
 });
 
 describe("on-demand context injection", () => {
-  test("pretooluse appends a nextjs chunk after skill injection", async () => {
+  test("pretooluse appends the AI Stack chunk after skill injection", async () => {
     const testSession = createTestSession();
     try {
       const { code, stdout } = await runPretoolHook({
         tool_name: "Read",
-        tool_input: { file_path: "/Users/me/project/next.config.ts" },
+        tool_input: { file_path: "/Users/me/project/app/api/chat/route.ts" },
       }, testSession);
 
       expect(code).toBe(0);
       const parsed = JSON.parse(stdout);
       const ctx = parsed.hookSpecificOutput.additionalContext as string;
-      expect(ctx).toContain("Skill(");
-      expect(ctx).toContain("<!-- vercel-context-chunk:nextjs-platform -->");
-      expect(ctx).toContain("Default to Next.js App Router");
+      expect(ctx).toContain("Skill(ai-sdk)");
+      expect(ctx).toContain("<!-- vercel-context-chunk:ai-stack -->");
+      expect(ctx).toContain("Default to AI SDK 7");
     } finally {
       cleanupSessionArtifacts(testSession);
     }

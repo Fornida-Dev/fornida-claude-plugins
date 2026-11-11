@@ -1,10 +1,10 @@
 ---
 name: routing-middleware
-description: Vercel Routing Middleware guidance — request interception before cache, rewrites, redirects, personalization. Works with any framework. Supports Edge, Node.js, and Bun runtimes. Use when intercepting requests at the platform level.
+description: Vercel Routing Middleware guidance — request interception before cache, rewrites, redirects, personalization. Works with any framework. Supports Edge, Node.js, Bun, and Python runtimes. Use when intercepting requests at the platform level.
 metadata:
   priority: 6
   docs:
-    - "https://nextjs.org/docs/app/building-your-application/routing/middleware"
+    - "https://nextjs.org/docs/app/api-reference/file-conventions/proxy"
     - "https://vercel.com/docs/routing-middleware"
   sitemap: "https://nextjs.org/sitemap.xml"
   pathPatterns: 
@@ -33,10 +33,8 @@ metadata:
 validate:
   -
     pattern: 'NextResponse.*from\s+[''"]next/server[''"]|from\s+[''"]next/server[''"].*NextResponse'
-    message: 'Next.js middleware.ts is renamed to proxy.ts in Next.js 16 — rename the file and use the Node.js runtime. Run Skill(nextjs) for proxy.ts migration guidance.'
+    message: 'Next.js middleware.ts is renamed to proxy.ts in Next.js 16 — rename the file and use the Node.js runtime. See the proxy file convention in the bundled docs at node_modules/next/dist/docs/.'
     severity: recommended
-    upgradeToSkill: nextjs
-    upgradeWhy: 'Guides migration from middleware.ts to proxy.ts with correct file placement, Node.js runtime, and Next.js 16 patterns.'
     skipIfFileContains: 'proxy\.ts|runtime.*nodejs'
 retrieval:
   aliases:
@@ -61,11 +59,6 @@ chainTo:
     targetSkill: auth
     message: 'Auth logic in middleware — loading Auth guidance for Clerk/Auth0 integration patterns.'
   -
-    pattern: 'NextResponse.*from\s+[''"]next/server[''"]|from\s+[''"]next/server[''"].*NextResponse'
-    targetSkill: nextjs
-    message: 'middleware.ts with next/server imports detected — loading Next.js guidance for proxy.ts migration (Next.js 16 renames middleware.ts to proxy.ts with Node.js runtime).'
-    skipIfFileContains: 'proxy\.ts|runtime.*nodejs'
-  -
     pattern: 'from\s+[''""](jsonwebtoken)[''""]|jwt\.(verify|decode)\('
     targetSkill: auth
     message: 'Manual JWT verification in middleware — loading Auth guidance for managed auth middleware patterns (Clerk, Descope).'
@@ -81,9 +74,9 @@ You are an expert in Vercel Routing Middleware — the platform-level request in
 
 Routing Middleware runs **before the cache** on every request matching its config. It is a **Vercel platform** feature (not framework-specific) that works with Next.js, SvelteKit, Astro, Nuxt, or any deployed framework. Built on Fluid Compute.
 
-- **File**: `middleware.ts` or `middleware.js` at the project root
-- **Default export required** (function name can be anything)
-- **Runtimes**: Edge (default), Node.js (`runtime: 'nodejs'`), Bun (Node.js + `bunVersion` in vercel.json)
+- **Preferred platform configuration**: Set `proxy.entrypoint` in `vercel.json`. The entrypoint can use any supported filename or directory and runs on Node.js for TypeScript/JavaScript, or on Python for a `module:attribute` entrypoint such as `proxy:proxy` (not a plain `proxy.py` path; packages go in the `vercel.proxy` dependency group in `pyproject.toml`). The middleware must use the same runtime as your app (Python middleware works with Python apps such as FastAPI, Flask, or Django); a mismatch fails the build with `proxy_runtime_mismatch`. Frameworks that build their own routing middleware (Next.js, Astro) do not use the `proxy` property; use the framework's file convention instead.
+- **File convention**: `middleware.ts` or `middleware.js` at the project root. This convention defaults to Edge; set `runtime: 'nodejs'` to use Node.js.
+- **Next.js 16**: Use `proxy.ts` and export `proxy`. Next.js Proxy runs on Node.js only.
 
 ## CRITICAL: Middleware Disambiguation
 
@@ -91,11 +84,11 @@ There are THREE "middleware" concepts in the Vercel ecosystem:
 
 | Concept | File | Runtime | Scope | When to Use |
 |---------|------|---------|-------|-------------|
-| **Vercel Routing Middleware** | `middleware.ts` (root) | Edge/Node/Bun | Any framework, platform-level | Request interception before cache: rewrites, redirects, geo, A/B |
+| **Vercel Routing Middleware** | `proxy.entrypoint` or `middleware.ts` | Node/Edge/Bun/Python | Any framework, platform-level | Request interception before cache: rewrites, redirects, geo, A/B |
 | **Next.js 16 Proxy** | `proxy.ts` (root, or `src/proxy.ts` if using `--src-dir`) | Node.js only | Next.js 16+ only | Network-boundary proxy needing full Node APIs. NOT for auth. |
-| **Edge Functions** | Any function file | V8 isolates | General-purpose | Standalone edge compute endpoints, not an interception layer |
+| **Vercel Functions** | Route or function file | Node/Bun/Python/Rust | General-purpose | Request handlers and backend compute, not an interception layer |
 
-**Why the rename in Next.js 16**: `middleware.ts` → `proxy.ts` clarifies it sits at the network boundary (not general-purpose middleware). Partly motivated by CVE-2025-29927 (middleware auth bypass via `x-middleware-subrequest` header). The exported function must also be renamed from `middleware` to `proxy`. Migration codemod: `npx @next/codemod@latest middleware-to-proxy`
+**Why the rename in Next.js 16** (`middleware.ts` → `proxy.ts`): "middleware" was often confused with Express.js middleware, and Next.js recommends the feature only as a last resort while it builds better APIs; "proxy" says what it is, a network boundary in front of the app. The exported function must also be renamed from `middleware` to `proxy`. Migration codemod: `npx @next/codemod@latest middleware-to-proxy .`
 
 **Deprecation**: Next.js 16 still accepts `middleware.ts` but treats it as deprecated and logs a warning. It will be removed in a future version.
 
@@ -103,7 +96,7 @@ There are THREE "middleware" concepts in the Vercel ecosystem:
 
 To run Routing Middleware (and all Vercel Functions) on Bun, add `bunVersion` to `vercel.json`:
 
-```json
+```json filename="vercel.json"
 {
   "bunVersion": "1.x"
 }
@@ -121,20 +114,28 @@ Bun reduces average latency by ~28% in CPU-bound workloads. Currently in Public 
 
 ## Basic Example
 
+Configure an explicit entrypoint for framework-agnostic Routing Middleware:
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "proxy": {
+    "entrypoint": "proxy.ts",
+    "matcher": ["/((?!_next/static|favicon.ico).*)"]
+  }
+}
+```
+
 ```ts
-// middleware.ts (project root)
+// proxy.ts
 import { geolocation, rewrite } from '@vercel/functions';
 
-export default function middleware(request: Request) {
+export default function proxy(request: Request) {
   const { country } = geolocation(request);
   const url = new URL(request.url);
   url.pathname = country === 'US' ? '/us' + url.pathname : '/intl' + url.pathname;
   return rewrite(url);
 }
-
-export const config = {
-  runtime: 'edge', // 'edge' (default) | 'nodejs'
-};
 ```
 
 ## Helper Methods (`@vercel/functions`)
@@ -149,7 +150,7 @@ For non-Next.js frameworks, import from `@vercel/functions`:
 | `ipAddress(request)` | Get client IP address |
 | `waitUntil(promise)` | Keep function running after response is sent |
 
-For Next.js, equivalent helpers are on `NextResponse` (`next()`, `rewrite()`, `redirect()`) and `NextRequest` (`request.geo`, `request.ip`).
+For Next.js, `NextResponse` provides `next()`, `rewrite()`, and `redirect()`. Use `geolocation(request)` and `ipAddress(request)` from `@vercel/functions`; `NextRequest.geo` and `NextRequest.ip` were removed in Next.js 15.
 
 ## Matcher Configuration
 
@@ -199,10 +200,10 @@ export default async function middleware(request: Request) {
 ### Background Processing
 
 ```ts
-import type { RequestContext } from '@vercel/functions';
+import { waitUntil } from '@vercel/functions';
 
-export default function middleware(request: Request, context: RequestContext) {
-  context.waitUntil(
+export default function middleware(request: Request) {
+  waitUntil(
     fetch('https://analytics.example.com/log', { method: 'POST', body: request.url })
   );
   return new Response('OK');
@@ -224,21 +225,22 @@ Vercel's CDN supports three routing mechanisms, evaluated in this order:
 | Order | Mechanism | Scope | Deploy Required | How to Configure |
 |-------|-----------|-------|-----------------|------------------|
 | 1 | **Bulk Redirects** | Up to 1M static path→path redirects | No (runtime via Dashboard/API/CLI) | Dashboard, CSV upload, REST API |
-| 2 | **Project-Level Routes** | Headers, rewrites, redirects | No (instant publish) | Dashboard, API, CLI, Vercel SDK |
+| 2 | **Project-Level Routes** | Headers, rewrites, redirects | No (instant publish) | Dashboard, REST API, `vercel routes` CLI |
 | 3 | **Deployment Config Routes** | Full routing rules | Yes (deploy) | `vercel.json`, `vercel.ts`, `next.config.ts` |
 
 **Project-level routes** (added March 2026) let you update routing rules — response headers, rewrites to external APIs — without triggering a new deployment. They run after bulk redirects and before deployment config routes. Available on all plans.
 
 ### Project-Level Routes — Configuration Methods
 
-Project-level routes take effect instantly (no deploy required). Four ways to manage them:
+Project-level routes take effect instantly (no deploy required). Three ways to manage them:
 
 | Method | How |
 |--------|-----|
 | **Dashboard** | Project → CDN → Routing tab. Live map of global traffic, cache management, and route editor in one view. |
 | **REST API** | `GET/POST/PATCH/DELETE /v1/projects/{projectId}/routes` — 8 dedicated endpoints for CRUD on project routes. |
-| **Vercel CLI** | Managed via `vercel.ts` / `@vercel/config` commands (`compile`, `validate`, `generate`). |
-| **Vercel SDK** | `@vercel/config` helpers: `routes.redirect()`, `routes.rewrite()`, `routes.header()`, plus `has`/`missing` conditions and transforms. |
+| **Vercel CLI** | Use `vercel routes` to stage, inspect, publish, restore, and export project-level rules. |
+
+Deployment-level routes in `vercel.json`, `vercel.ts`, or framework config are a separate mechanism (row 3 above) and require a deploy.
 
 Use project-level routes for operational changes (CORS headers, API proxy rewrites, A/B redirects) that shouldn't require a full redeploy.
 
@@ -248,22 +250,19 @@ Instead of static `vercel.json`, you can use `vercel.ts` (or `.js`, `.mjs`, `.cj
 
 ```ts
 // vercel.ts
-import { defineConfig } from '@vercel/config';
+import { routes, type VercelConfig } from '@vercel/config/v1';
 
-export default defineConfig({
+export const config: VercelConfig = {
   rewrites: [
-    { source: '/api/:path*', destination: 'https://backend.example.com/:path*' },
+    routes.rewrite('/api/(.*)', 'https://backend.example.com/$1'),
   ],
   headers: [
-    { source: '/(.*)', headers: [{ key: 'X-Frame-Options', value: 'DENY' }] },
+    routes.header('/(.*)', [{ key: 'X-Frame-Options', value: 'DENY' }]),
   ],
-});
+};
 ```
 
-CLI commands:
-- `npx @vercel/config compile` — compile to JSON (stdout)
-- `npx @vercel/config validate` — validate and show summary
-- `npx @vercel/config generate` — generate `vercel.json` locally for development
+For project-level rules that take effect without a deployment, use `vercel routes add`, inspect staged changes with `vercel routes list --diff`, then run `vercel routes publish`.
 
 **Constraint**: Only one config file per project — `vercel.json` or `vercel.ts`, not both.
 
@@ -279,7 +278,7 @@ CLI commands:
 ## When NOT to Use
 
 - Need full Node.js APIs in Next.js → use `proxy.ts`
-- General compute at the edge → use Edge Functions
+- General compute or request handling → use Vercel Functions on the default Node.js runtime
 - Heavy business logic or database queries → use server-side framework features
 - Auth as sole protection → use Layouts, Server Components, or Route Handlers
 - Thousands of static redirects → use Bulk Redirects (up to 1M per project)
@@ -287,5 +286,6 @@ CLI commands:
 ## References
 
 - 📖 docs: https://vercel.com/docs/routing-middleware
-- 📖 API reference: https://vercel.com/docs/routing-middleware/api
+- 📖 JS reference: https://vercel.com/docs/routing-middleware/js-reference
+- 📖 Python reference: https://vercel.com/docs/routing-middleware/python-reference
 - 📖 getting started: https://vercel.com/docs/routing-middleware/getting-started

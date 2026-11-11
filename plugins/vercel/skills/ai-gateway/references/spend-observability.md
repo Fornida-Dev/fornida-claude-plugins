@@ -47,18 +47,18 @@ BYOK spend is metered separately and does not count toward any budget.
 
 ### CLI and API
 
-The Vercel CLI manages budgets per scope. `set` creates or updates, `list` shows every scope's limit and spend, `inspect` shows one scope, and `remove` lifts a cap (falling back to the scope's default when one exists). Defaults get their own `defaults` subcommand:
+The Vercel CLI manages budgets per scope. `set` creates or updates, `list` shows every scope's limit and spend, `inspect` shows one scope, and `remove` lifts a cap (falling back to the scope's default when one exists). Target a scope's default with `--default` on `set`, `inspect`, or `remove`, and list defaults with `list --defaults` (Vercel CLI 59.13+; the older `budgets defaults` group is deprecated):
 
 ```bash
-vercel ai-gateway budgets set team --limit 500 --refresh-period monthly
-vercel ai-gateway budgets set project my-project --limit 200
-vercel ai-gateway budgets set api-key my-key --limit 50
-vercel ai-gateway budgets defaults set api-key --limit 50 --refresh-period monthly
+vercel ai-gateway budgets set team --amount 500 --refresh-period monthly
+vercel ai-gateway budgets set project my-project --amount 200
+vercel ai-gateway budgets set api-key my-key --amount 50
+vercel ai-gateway budgets set api-key --default --amount 50 --refresh-period monthly
 vercel ai-gateway budgets inspect team
 vercel ai-gateway budgets list
 ```
 
-Check `vercel ai-gateway budgets set --help` for the current flag set before scripting.
+Check `vercel ai-gateway budgets set --help` for the current flag set before scripting; `--amount` needs Vercel CLI 65.4+, and older CLIs use `--limit`.
 
 Budget changes take effect after a short delay, typically tens of seconds and up to about 5 minutes for an actively used key.
 
@@ -86,7 +86,7 @@ Docs: <https://vercel.com/docs/ai-gateway/observability-and-spend/logs> and <htt
 
 ## Custom Reporting
 
-The Custom Reporting API aggregates usage by model, user, tag, provider, credential type, ZDR status, or API key name, with filters for each dimension and day- or hour-level granularity. It requires a Pro or Enterprise plan, is beta, and bills writes and queries.
+The Custom Reporting API aggregates usage by model, user, tag, provider, credential type, ZDR status, or API key name, with filters for each dimension and day- or hour-level granularity. It requires a Pro or Enterprise plan and bills writes and queries.
 
 Attach `user` and/or `tags` to requests through `providerOptions.gateway` (AI SDK) or `extra_body.providerOptions.gateway` (Python SDKs), or through the `ai-reporting-user` and `ai-reporting-tags` headers when a proxy stamps context without changing application code.
 

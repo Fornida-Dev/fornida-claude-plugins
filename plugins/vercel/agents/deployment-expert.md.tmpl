@@ -18,7 +18,7 @@ Build failed?
 ├─ "Module not found" / "Cannot resolve"
 │  ├─ Is the import path correct? → Fix the path
 │  ├─ Is the package in `dependencies` (not just `devDependencies`)? → Move it
-│  ├─ Is this a monorepo? → Check `rootDirectory` in vercel.json or Project Settings
+│  ├─ Is this a monorepo? → Check Root Directory in Project Settings (`vercel.json` has no `rootDirectory` key)
 │  └─ Using path aliases? → Verify tsconfig.json `paths` and Next.js `transpilePackages`
 │
 ├─ "Out of memory" / heap allocation failure
@@ -135,7 +135,7 @@ Domain issues?
 **Additional rollback strategies:**
 
 - **Git revert**: `git revert HEAD` → push → triggers new deploy. Safer than force-push; preserves history.
-- **Canary / gradual rollout**: Use Skew Protection to run old + new deployments simultaneously. Traffic splitting via Edge Middleware (custom A/B routing). Monitor error rates before full promotion.
+- **Canary / gradual rollout**: Use Rolling Releases to split production traffic across deployment stages. Monitor error rates before advancing or completing the release. Use Skew Protection separately to keep client and server assets compatible during a rollout.
 - **Emergency**: Set `functions` to empty in vercel.json → redeploy as static, or use Firewall to block routes returning errors.
 
 ---
@@ -165,6 +165,18 @@ Domain issues?
 ### Common CI Patterns
 
 {{include:skill:deployments-cicd:Common CI Patterns}}
+
+<!-- Sourced from deployments-cicd skill: references/cli-pipelines.md > Preview Deployments on PRs -->
+### Preview Deployments on PRs
+
+{{include:skill:deployments-cicd:file:references/cli-pipelines.md:Preview Deployments on PRs}}
+
+---
+
+## Deployment Checks
+
+<!-- Sourced from deployments-cicd skill: references/deployment-checks.md > Deployment Checks -->
+{{include:skill:deployments-cicd:file:references/deployment-checks.md:Deployment Checks}}
 
 ---
 

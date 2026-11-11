@@ -3,21 +3,20 @@
 ## Quick Reference
 
 - **Build hooks**: `bun run build:hooks` (compiles `hooks/src/*.mts` → `hooks/*.mjs` via tsup)
-- **Build manifest**: `bun run build:manifest` (generates `generated/skill-manifest.json` from SKILL.md frontmatter)
 - **Build from skills**: `bun run build:from-skills` (compiles `*.md.tmpl` → `*.md` by resolving `{{include:skill:…}}` markers)
 - **Check from skills**: `bun run build:from-skills:check` (verify generated `.md` files are up-to-date; exits non-zero on drift)
-- **Build all**: `bun run build` (hooks + manifest + from-skills)
+- **Build all**: `bun run build:all` (skills + hooks + from-skills). It is not named `build`: npm then "prepares" Git installs, which breaks `opencode plugin add github:vercel/vercel-plugin` ([anomalyco/opencode#49704](https://github.com/anomalyco/opencode/issues/49704))
 - **Test**: `bun test` (typecheck + 42 test files)
 - **Single test**: `bun test tests/<file>.test.ts`
 - **Typecheck only**: `bun run typecheck` (tsc on hooks/tsconfig.json)
-- **Validate skills**: `bun run validate` (structural validation of all skills + manifest)
-- **Doctor**: `bun run doctor` (self-diagnosis: manifest parity, hook timeouts, dedup health)
+- **Validate skills**: `bun run validate` (structural validation of skill sources; does not write generated files)
+- **Doctor**: `bun run doctor` (self-diagnosis: skill validation, hook timeouts, dedup health)
 - **Update snapshots**: `bun test:update-snapshots` (regenerate golden snapshot baselines)
 - **Playground**: `bun run playground:generate` (generate static skill files for external tools)
 
 Run `bun run build:hooks` after editing any `.mts` file. A pre-commit hook auto-compiles when `.mts` files are staged.
 
-Run `bun run build:from-skills` after editing any skill referenced by a `.md.tmpl` template. The `build` script includes this step automatically.
+Run `bun run build:from-skills` after editing any skill referenced by a `.md.tmpl` template. The `build:all` script includes this step automatically.
 
 ## Architecture
 
@@ -29,7 +28,8 @@ All hooks are registered in `hooks/hooks.json` and run via `node "${CLAUDE_PLUGI
 |-------|------|---------|---------|
 | SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — |
 | SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` | `startup\|resume\|clear\|compact` | — |
+| SessionStart | `inject-claude-md.mjs` `--part 1/2` | `startup\|resume\|clear\|compact` | — |
+| SessionStart | `inject-claude-md.mjs` `--part 2/2` | `startup\|resume\|clear\|compact` | — |
 | PostToolUse | `posttooluse-skill-telemetry.mjs` | `Skill` | 5s |
 | SessionEnd | `session-end-cleanup.mjs` | — | — |
 
@@ -40,7 +40,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 **Entry-point hooks** (wired in hooks.json):
 - `session-start-seen-skills.mts` — initializes `VERCEL_PLUGIN_SEEN_SKILLS=""` in `CLAUDE_ENV_FILE`
 - `session-start-profiler.mts` — activates only for greenfield directories or detected Vercel, Next.js, or eve projects, then scans config files + package deps → sets `VERCEL_PLUGIN_LIKELY_SKILLS` (+5 priority boost)
-- `inject-claude-md.mts` — outputs the thin session-start Vercel context plus knowledge update guidance for that same activation set
+- `inject-claude-md.mts` — outputs the thin session-start Vercel context plus knowledge update guidance for that same activation set. Claude Code caps each hook's output at 10,000 characters, so the hook packs the context in order into parts of at most 9,000 characters, split at `##` sections, and hooks.json runs it once per part (`--part <i>/<n>`). `tests/inject-claude-md.test.ts` fails when the content needs more parts than hooks.json runs; add an invocation rather than raising the limit
 - `posttooluse-skill-telemetry.mts` — on `Skill` tool use, reports the bare name of a plugin-namespaced (`vercel:`/`vercel-plugin:`), plugin-shipped skill/command (`skill:invoked`); other namespaces, bare names, and arguments are dropped. Also the `--send` entrypoint that the detached sender runs for every skill event
 - `session-end-cleanup.mts` — deletes session-scoped temp files
 
@@ -54,6 +54,16 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `logger.mts` — structured JSON logging to stderr (off/summary/debug/trace)
 - `telemetry.mts` — opt-out telemetry (`VERCEL_PLUGIN_TELEMETRY=off`): daily DAU ping, installation ID, skill slug/namespace validation, and `skill:invoked` / `skill:injected` event builders/senders
 - `skill-telemetry.mts` — shared skill-telemetry plumbing: per-session telemetry UUID + harness temp files, payload assembly, and `queueSkillTelemetry()` which spawns the detached sender (used by the Skill hook and both inject hooks)
+
+### OpenCode 2 Entry (`hooks/src/opencode-plugin.mts`)
+
+OpenCode loads `hooks/opencode-plugin.mjs` through package.json `exports` (`opencode plugin add github:vercel/vercel-plugin`). It runs inside the long-lived OpenCode server, not as per-event subprocesses, and reuses the hook modules:
+
+- Skills, commands (`vercel:<name>`), agents (subagents), and the `.mcp.json` servers are registered through OpenCode transforms. User definitions with the same ID win.
+- The SessionStart profiler and `inject-claude-md` output becomes a `context` hook, computed once per lead session and reused verbatim. Child sessions get nothing, like Claude Code subagents.
+- Skill telemetry is a `tool` `execute.after` hook on OpenCode's `skill` tool, reported with the `opencode` harness. State is in memory, so there is no SessionEnd cleanup.
+
+To try a local checkout, create `~/.config/opencode/plugins/vercel-plugin.js` containing `export { default } from "<checkout>/hooks/opencode-plugin.mjs";`. A configured local directory path does not work: OpenCode only reads `index.*` from local plugin directories ([anomalyco/opencode#52300](https://github.com/anomalyco/opencode/issues/52300)).
 
 ### Skill Injection Flow
 
@@ -71,7 +81,7 @@ Special triggers in PreToolUse:
 
 ### Skill Structure (`skills/<name>/SKILL.md`)
 
-35 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
+38 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
 
 ```yaml
 ---
@@ -98,9 +108,9 @@ metadata:
 # Skill body (markdown, injected as additionalContext)
 ```
 
-### Manifest (`generated/skill-manifest.json`)
+### Skill Metadata
 
-Built by `scripts/build-manifest.ts`. Pre-compiles glob→regex at build time for runtime speed. Version 2 format with paired arrays (`pathPatterns` ↔ `pathRegexSources`, etc.). Hooks prefer manifest over live SKILL.md scanning.
+Hooks and developer tools read metadata directly from `skills/*/SKILL.md` using `buildSkillMap()` and `validateSkillMap()`. Matching patterns are compiled in memory for each invocation, so skill edits are picked up without rebuilding a separate index. CLI scripts share `src/shared/skill-map-loader.ts`.
 
 ### Dedup Contract
 
@@ -124,7 +134,7 @@ Uses inline `parseSimpleYaml` in `skill-map-frontmatter.mjs`, **not** js-yaml:
 ### CLI (`src/cli/`)
 
 - `vercel-plugin explain <target> [--json] [--project <path>] [--likely-skills s1,s2] [--budget <bytes>]` — shows which skills match a file path or bash command, with priority breakdown and budget simulation
-- `vercel-plugin doctor` — validates manifest parity, hook timeout risk, dedup correctness, skill map errors
+- `vercel-plugin doctor` — validates skill metadata, hook timeout risk, dedup correctness, and template freshness
 
 ### Playground (`.playground/`)
 
@@ -143,7 +153,7 @@ Agents and commands derive instructions from skills via `.md.tmpl` templates. Sk
 
 Heading extraction is case-insensitive and captures everything from the heading to the next heading of equal or higher level.
 
-**Build**: `bun run build:from-skills` resolves all includes and writes output files. `bun run build:from-skills:check` verifies outputs are up-to-date (useful in CI). Both are part of `bun run build`.
+**Build**: `bun run build:from-skills` resolves all includes and writes output files. It is part of `bun run build`. `bun run build:from-skills:check` verifies outputs are up-to-date in CI. Dependency queries (`--skill <name>`) and coverage reports (`--audit`) are calculated from templates on demand.
 
 **Current templates** (7): `agents/ai-architect.md.tmpl`, `agents/deployment-expert.md.tmpl`, `agents/performance-optimizer.md.tmpl`, `commands/bootstrap.md.tmpl`, `commands/deploy.md.tmpl`, `commands/env.md.tmpl`, `commands/status.md.tmpl`.
 

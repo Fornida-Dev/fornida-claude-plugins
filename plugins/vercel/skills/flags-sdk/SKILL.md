@@ -1,7 +1,7 @@
 ---
 name: flags-sdk
-description: Flags SDK and Vercel Flags expert guidance. Use when declaring feature flags with flag(), wiring provider adapters (Vercel, Statsig, LaunchDarkly, PostHog, and others), managing flags with the vercel flags CLI, implementing the precompute pattern for static A/B tests, or integrating the Flags Explorer.
-summary: "Flags SDK guidance — declare flags with flag(), connect provider adapters, manage Vercel Flags via the vercel flags CLI, precompute static variants, and set up the Flags Explorer."
+description: "Implement feature flags in Next.js or SvelteKit code with the Flags SDK (`flags` npm package). Use when installing or configuring the SDK, declaring flags with `flag()`, reading a connected same-team project's flags through Project Connections (`createVercelAdapter({ projectId })`), wiring a provider adapter (`@flags-sdk/vercel`, Statsig, LaunchDarkly, PostHog, GrowthBook, Global Config, OpenFeature, and others), using `identify`, `dedupe`, or `evaluate`, keeping pages static with precompute, setting up Flags Explorer, or encrypting flag values. For planning a flag, Vercel Flags rollouts and experiments, the `vercel flags` CLI, or other frameworks, use the `vercel-flags` skill."
+summary: "Flags SDK guidance for Next.js and SvelteKit — declare flags with flag(), connect provider adapters, precompute static variants, and set up the Flags Explorer endpoint."
 metadata:
   priority: 6
   docs:
@@ -24,72 +24,55 @@ metadata:
     - '@flags-sdk/*'
     - '@vercel/flags'
   bashPatterns:
-    - '\bvercel\s+flags\b'
-    - '\bvc\s+flags\b'
-    - '\bnpm\s+(install|i|add)\s+[^\n]*\bflags\b'
-    - '\bpnpm\s+(install|i|add)\s+[^\n]*\bflags\b'
-    - '\bbun\s+(install|i|add)\s+[^\n]*\bflags\b'
-    - '\byarn\s+add\s+[^\n]*\bflags\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
+    - '\bbun\s+(install|i|add)\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
+    - '\byarn\s+add\s+[^\n]*(?<![\w@/-])flags(?![\w/-])'
     - '\bnpm\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\bbun\s+(install|i|add)\s+[^\n]*@flags-sdk/'
     - '\byarn\s+add\s+[^\n]*@flags-sdk/'
   promptSignals:
     phrases:
-      - "feature flag"
-      - "feature flags"
       - "flags sdk"
-      - "vercel flags"
       - "flags explorer"
-      - "feature gate"
-      - "feature gating"
-      - "a/b test"
-      - "a/b testing"
-      - "ab test"
-      - "ab testing"
-      - "flag rollout"
-      - "gradual rollout"
-      - "percentage rollout"
-      - "kill switch"
-      - "flag variant"
       - "flag adapter"
       - "precompute flags"
+      - "flags/next"
+      - "flags/sveltekit"
+      - "@flags-sdk"
     allOf:
-      - [flag, rollout]
-      - [flag, variant]
-      - [flag, toggle]
-      - [flag, experiment]
-      - [experiment, variant]
-      - [split, test]
+      - [flag, precompute]
+      - [flag, adapter]
+      - [flag, next.js]
+      - [flag, nextjs]
+      - [flag, sveltekit]
     anyOf:
       - "flag"
-      - "experiment"
-      - "experimentation"
-      - "rollout"
-      - "variant"
+      - "precompute"
+      - "adapter"
     noneOf:
       - "command-line flag"
       - "command line flag"
       - "cli flag"
       - "compiler flag"
       - "flag emoji"
+      - "rolling release"
     minScore: 6
 retrieval:
   aliases:
-    - feature flags
-    - feature toggles
-    - vercel flags
     - flags sdk
-    - a/b testing
+    - flags/next
+    - flags/sveltekit
+    - flag adapters
   intents:
-    - add a feature flag
-    - run an a/b test
-    - gate a feature
-    - roll out gradually
-    - manage flags from cli
+    - declare a feature flag in code
+    - connect a flag provider adapter
+    - read flags from a connected project
+    - precompute flags for static pages
+    - set up flags explorer
   entities:
     - Flags SDK
-    - Vercel Flags
     - Flags Explorer
     - vercelAdapter
     - precompute
@@ -105,12 +88,16 @@ chainTo:
     message: 'Global Config flag adapter detected — loading Vercel storage guidance for Global Config setup and limits.'
 ---
 
-# Flags SDK
+# Set up and use the Flags SDK
 
-The Flags SDK (`flags` npm package) is a feature flags toolkit for Next.js and SvelteKit. It turns each feature flag into a callable function, works with any flag provider via adapters, and keeps pages static using the precompute pattern. Vercel Flags is the first-party provider, letting you manage flags from the Vercel dashboard or the `vercel flags` CLI.
+The Flags SDK (`flags` npm package) is a feature flags toolkit for Next.js and SvelteKit. It turns each feature flag into a callable function, works with any flag provider via adapters, and keeps pages static using the precompute pattern. Vercel Flags is the first-party provider; its adapter is `@flags-sdk/vercel`.
 
 - Docs: https://flags-sdk.dev
 - Repo: https://github.com/vercel/flags
+
+This skill covers the code. Planning a flag, choosing between the Flags SDK, `@vercel/flags-core`, and OpenFeature, and managing flags in the dashboard or with the `vercel flags` CLI belong to the `vercel-flags` skill. Archiving a flag, deleting it, or removing a variant requires the checks in that skill (remove the code first, confirm no evaluations over the Skew Protection window, archive before `rm`); do not run those commands without it. If it is not available, suggest `npx skills add vercel/flags@vercel-flags` (do not auto-install) and run `vercel flags <cmd> --help` in the meantime. For a project on another framework, `@vercel/flags-core` replaces this SDK ([Core SDK](https://vercel.com/docs/flags/vercel-flags/sdks/core)).
+
+When the user asks to install, configure, or set up the SDK, follow [Set up the SDK](#set-up-the-sdk) (including `vercel env pull` when `.env.local` is missing). When they ask to add a flag to the code, follow [Create a flag](#create-a-flag) or [Add a flag that already exists on Vercel](#add-a-flag-that-already-exists-on-vercel). Inside an app repository, treat an ambiguous request as the full flow. Do not leave CLI steps as "next steps" for the user; execute them yourself.
 
 ## Core concepts
 
@@ -149,9 +136,9 @@ export const exampleFlag = flag({
 
 > **Version note**: The SDK is published as `flags` (renamed from `@vercel/flags`; that old name still appears in changelog history). `flags` 4.2.0+ accepts the adapter factory by reference (`adapter: vercelAdapter`) and resolves it once per declaration. Older versions require calling it (`adapter: vercelAdapter()`). The called form still works on new versions, so prefer the shorthand unless you're targeting `flags` < 4.2.0.
 
-## Agent workflow: Creating a new flag
+## Set up the SDK
 
-When a user asks you to create or add a feature flag, follow these steps in order. Do not leave CLI steps as "next steps" for the user — execute them yourself.
+One-time project setup. Run this when the Flags SDK is not installed yet, or when Toolbar / Flags Explorer / `.env.local` are missing. Skip any step that is already done.
 
 ### Before you start
 
@@ -159,11 +146,11 @@ Check the project state to adapt commands and decide which steps you can skip:
 
 - Which lockfile is present (`pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`, `bun.lockb`)? → Adapt all package manager commands accordingly (`pnpm add`, `npm install`, `yarn add`, `bun add`).
 - Is `flags` in `package.json`? → Skip install (step 1)
-- Does `.vercel/` directory exist? → Project is linked, skip `vercel link` in step 2
-- Does `.env.local` contain `FLAGS=`? → Env vars already pulled, skip step 3
-- Does `flags.ts` (or `lib/flags.ts`, `src/flags.ts`) exist? → Add to it rather than creating from scratch (step 4)
-- Is `@vercel/toolbar` in `package.json`? → Skip toolbar setup (step 6)
-- Does `app/.well-known/vercel/flags/route.ts` exist? → Flags Explorer already set up, skip step 7
+- Is the project linked? → Skip `vercel link` in step 2
+- Does `.env.local` contain `VERCEL_OIDC_TOKEN=` (or a `FLAGS=` SDK key)? → Env vars already pulled, skip step 3
+- Is `@vercel/toolbar` in `package.json`? → Skip toolbar setup (step 4)
+- Does `flags.ts` (or `lib/flags.ts`, `src/flags.ts`) exist? → Skip creating it (step 5)
+- Does `app/.well-known/vercel/flags/route.ts` exist? → Flags Explorer already set up, skip step 6
 
 ### Steps
 
@@ -172,13 +159,50 @@ Check the project state to adapt commands and decide which steps you can skip:
    pnpm i flags @flags-sdk/vercel
    ```
 
-2. **Register the flag with Vercel**: Run `vercel flags add <flag-key> --kind boolean --description "<description>"`.
+2. **Link the project to Vercel** (required for `vercel env pull` and local OIDC token refresh):
+   > **Prerequisite**: The Vercel CLI must be installed and authenticated. If it is not installed, run `pnpm i -g vercel`. For authentication or linking issues, follow the `vercel-cli` skill if it's already available. If it isn't, suggest the user install it with `npx skills add vercel/vercel@vercel-cli` (don't auto-install it) and rely on `vercel <command> --help` in the meantime.
 
-   > **Prerequisite**: The `vercel flags` commands require the Vercel CLI to be installed and authenticated. If the Vercel CLI is not installed, run `pnpm i -g vercel`. For authentication or linking issues, follow the `vercel-cli` skill if it's already available. If it isn't, suggest the user install it with `npx skills add vercel/vercel@vercel-cli` (don't auto-install it) and rely on `vercel <command> --help` in the meantime.
+   Verify the link with `vercel project inspect --non-interactive` and check the reported owner and project name; a `.vercel/` directory alone does not prove a link. If it reports `link_required`, run `vercel link`. If the user named a project or team and the output differs, stop and ask instead of relinking.
 
-   Before running `vercel flags add`, verify the project is linked to Vercel. Check for a `.vercel` directory in the project root. If it doesn't exist, run `vercel link` first.
+3. **Pull environment variables**: If `.env.local` lacks `VERCEL_OIDC_TOKEN=`, follow [Pull environment variables](#pull-environment-variables).
 
-3. **Pull environment variables**: Run `vercel env pull` to write `FLAGS` and `FLAGS_SECRET` to `.env.local`. Without these environment variables, `vercelAdapter` will not be able to evaluate flags. This step is **mandatory** after creating a flag.
+4. **Set up the Vercel Toolbar** (if not already present):
+   - Run `pnpm i @vercel/toolbar`
+   - Wrap `next.config.ts` with the toolbar plugin
+   - Render `<VercelToolbar />` in the root layout
+   See [references/nextjs.md — Toolbar Setup](references/nextjs.md#toolbar-setup) for the full code.
+
+5. **Ensure `flags.ts` exists**: If missing, create `flags.ts` (or `lib/flags.ts` / `src/flags.ts` to match the project) with `export {}` so TypeScript treats it as a module. Flags Explorer imports this file — create it before the discovery route.
+
+6. **Set up Flags Explorer** (if not already present): Create `app/.well-known/vercel/flags/route.ts` — see [Flags Explorer setup](#flags-explorer-setup). Do this only after `flags.ts` exists. Point the import at the real flags file path (the snippet assumes root `flags.ts`).
+
+## Pull environment variables
+
+`vercel env pull` writes the Development credentials to `.env.local`: the Vercel OIDC token that `vercelAdapter` uses locally (deployments receive it automatically, [Getting started](https://vercel.com/docs/flags/vercel-flags/quickstart#pull-local-openid-connect-credentials)) and the Development `FLAGS_SECRET` for Flags Explorer and overrides. Run it when:
+
+- `.env.local` lacks `VERCEL_OIDC_TOKEN=` (or a `FLAGS=` SDK key)
+- you created the project's first flag; activating Vercel Flags creates a `FLAGS_SECRET` per environment
+- local evaluation fails with an authentication error; the SDK refreshes an expired token through the linked project, re-pulling is the fallback
+
+Use SDK keys (`FLAGS`) for apps outside Vercel or to select an environment explicitly ([SDK Keys](https://vercel.com/docs/flags/vercel-flags/dashboard/sdk-keys)). To read another same-team project's flags on Vercel, use [Project Connections](references/providers.md#project-connections) with your project's OIDC token. If `FLAGS_SECRET` is still missing after the pull, generate it per [FLAGS_SECRET](#flags_secret).
+
+## Create a flag
+
+When a user asks you to create or add a feature flag that does not exist on Vercel yet, follow these steps in order. If the flag was already created in the dashboard (the prompt says so, or `vercel flags create` reports the key exists), follow [Add a flag that already exists on Vercel](#add-a-flag-that-already-exists-on-vercel) instead.
+
+### Before you start
+
+- Complete [Set up the SDK](#set-up-the-sdk) first if packages, Vercel link, `.env.local`, Toolbar, `flags.ts`, or Flags Explorer are missing. Skip steps that are already done.
+- Does `.env.local` contain `VERCEL_OIDC_TOKEN=`? → Env vars already pulled; see [Pull environment variables](#pull-environment-variables) if local evaluation fails with an authentication error.
+- Does `flags.ts` (or `lib/flags.ts`, `src/flags.ts`) exist? → Add to it rather than creating from scratch.
+
+### Steps
+
+1. **Ensure the SDK is set up**: Follow [Set up the SDK](#set-up-the-sdk) if needed, then continue.
+
+2. **Register the flag with Vercel**: Run `vercel flags create <flag-key> --kind boolean --description "<description>"` against the linked project, or pass `--project <name-or-id>` and `--scope <team>`. Pick the kind to match the flag's type parameter; it cannot be changed later.
+
+3. **Pull environment variables**: If this is the project's first flag, follow [Pull environment variables](#pull-environment-variables) again; activation created the `FLAGS_SECRET`.
 
 4. **Declare the flag in code**: Add it to `flags.ts` (or create the file if it doesn't exist) using `vercelAdapter`:
    ```ts
@@ -201,25 +225,41 @@ Check the project state to adapt commands and decide which steps you can skip:
    }
    ```
 
-6. **Set up the Vercel Toolbar** (if not already present):
-   - Run `pnpm i @vercel/toolbar`
-   - Wrap `next.config.ts` with the toolbar plugin
-   - Render `<VercelToolbar />` in the root layout
-   See [references/nextjs.md — Toolbar Setup](references/nextjs.md#toolbar-setup) for the full code.
+## Add a flag that already exists on Vercel
 
-7. **Set up Flags Explorer** (if not already present): Create `app/.well-known/vercel/flags/route.ts` — see the [Flags Explorer setup](#flags-explorer-setup) section below.
+Use this flow when the flag was created in the dashboard or by someone else, for example when the prompt says the flag "has already been created" or asks you to run `vercel flags inspect`. Do not run `vercel flags create` for an existing key.
 
-## Vercel Flags
+1. **Ensure the SDK is set up**: Follow [Set up the SDK](#set-up-the-sdk) if needed.
+2. **Read the definition**: Run `vercel flags inspect <flag-key>`. Note the kind, the variants (value and label), the description, and what each environment serves.
+3. **Pull environment variables**: If `.env.local` lacks `VERCEL_OIDC_TOKEN=`, follow [Pull environment variables](#pull-environment-variables).
+4. **Declare the flag**: Add it to `flags.ts` with `vercelAdapter`. Map the `inspect` output:
+   - `key`: the flag key exactly as printed
+   - kind → type parameter: `boolean` → `flag<boolean>`, `string` → `flag<string>`, `number` → `flag<number>`, `json` → `flag<YourType>`
+   - `description`: copy from `inspect`
+   - `defaultValue`: the value to serve when the flag is archived or evaluation fails (usually what production serves today)
+   - `options`: optional; mirror the variants when you use precompute or want them listed in Flags Explorer
+   - `identify`: add or reuse one when the flag has targeting, using the entity attributes configured in the dashboard (see [Flag with evaluation context](#flag-with-evaluation-context))
+   ```ts
+   export const welcomeMessage = flag<string>({
+     key: 'welcome-message',
+     description: 'Copy shown on the landing page',
+     defaultValue: 'control',
+     adapter: vercelAdapter,
+   });
+   ```
+5. **Use the flag** as in [Create a flag](#create-a-flag) step 5.
 
-Vercel Flags is Vercel's feature flags platform. You create and manage flags from the Vercel dashboard or the `vercel flags` CLI, then connect them to your code with the `@flags-sdk/vercel` adapter. When you create a flag in Vercel, the `FLAGS` and `FLAGS_SECRET` environment variables are configured automatically.
+## Vercel Flags adapter
 
-To create a flag end-to-end, follow the [Agent workflow](#agent-workflow-creating-a-new-flag) above.
+`@flags-sdk/vercel` connects `flag()` declarations to Vercel Flags. `vercelAdapter` authenticates with the project's Vercel OIDC token and evaluates the configuration of the current environment. Use `@flags-sdk/vercel` version 1.6.0 or later and `createVercelAdapter({ projectId })` for a connected same-team project's flags; see [Project Connections](references/providers.md#project-connections). SDK keys (`FLAGS`) are for manual authentication, such as apps outside Vercel or selecting an environment explicitly. Activating Vercel Flags creates a `FLAGS_SECRET` per environment for Flags Explorer.
 
-For the full Vercel provider reference — user targeting, `vercel flags` CLI subcommands, custom adapter configuration, and Flags Explorer setup — see [references/providers.md](references/providers.md#vercel).
+For user targeting, attribute types, custom adapter configuration, sharing a `@vercel/flags-core` client, and the Flags Explorer endpoint, see [references/providers.md — Vercel](references/providers.md#vercel).
+
+Changing what a flag serves (enable, set, split, rollout, rules, archive) happens in the dashboard or with `vercel flags`, not in code. The `vercel-flags` skill covers those flows; `vercel flags <cmd> --help` lists the options.
 
 ## Declaring flags
 
-When using Vercel Flags, declare flags with `vercelAdapter` as shown in the [Agent workflow](#agent-workflow-creating-a-new-flag). For other providers, see [references/providers.md](references/providers.md). Below are the general `flag()` patterns.
+When using Vercel Flags, declare flags with `vercelAdapter` as shown in [Create a flag](#create-a-flag). For other providers, see [references/providers.md](references/providers.md). Below are the general `flag()` patterns.
 
 ### Basic flag
 
@@ -266,6 +306,8 @@ export const dashboardFlag = flag<boolean, Entities>({
   },
 });
 ```
+
+With `vercelAdapter`, the entity and attribute names in the returned object (`user.id` here) are what dashboard rules and `vercel flags split|rollout|rules --by` target. They must match the entities and attribute types configured in the dashboard. See [references/providers.md — User targeting](references/providers.md#user-targeting) and [Attribute types](references/providers.md#attribute-types).
 
 ### Flag with another adapter
 
@@ -353,7 +395,7 @@ Adapters can opt into batching by implementing the optional `bulkDecide` hook. T
 // app/.well-known/vercel/flags/route.ts
 import { createFlagsDiscoveryEndpoint } from 'flags/next';
 import { getProviderData } from '@flags-sdk/vercel';
-import * as flags from '../../../../flags';
+import * as flags from '../../../../flags'; // adjust if flags live under lib/ or src/
 
 export const GET = createFlagsDiscoveryEndpoint(async () => {
   return getProviderData(flags);
@@ -377,21 +419,9 @@ export const handle = createHandle({ secret: FLAGS_SECRET, flags });
 
 ## FLAGS_SECRET
 
-Required for precompute and Flags Explorer. Must be 32 random bytes, base64-encoded:
+Required for precompute and Flags Explorer. Vercel Flags activation creates a value per environment. Preserve existing values; do not rotate them during ordinary SDK setup. A missing local value does not mean the remote value is missing: check the target environment first, then follow [Pull environment variables](#pull-environment-variables) for Development.
 
-```sh
-node -e "console.log(crypto.randomBytes(32).toString('base64url'))"
-```
-
-Use a separate `FLAGS_SECRET` value for each environment (Development, Preview, Production), and mark the Preview and Production values as Sensitive. Run the generator once per environment to produce distinct values, then store each on Vercel:
-
-```sh
-vercel env add FLAGS_SECRET production --sensitive --value <production-secret>
-vercel env add FLAGS_SECRET preview --sensitive --value <preview-secret>
-vercel env add FLAGS_SECRET development --value <development-secret>
-```
-
-Then run `vc env pull` to sync to local.
+Only generate a secret for an environment where it is absent. Use 32 cryptographically random bytes, base64-encoded, with a distinct value per environment. Mark Preview and Production values Sensitive. Send generated values directly to storage, such as stdin for `vercel env add`; do not print them to terminal output, logs, or chat, or embed them in command arguments.
 
 ## Precompute pattern
 
@@ -454,5 +484,5 @@ Detailed framework and provider guides are in separate files to keep context lea
 
 - **[references/nextjs.md](references/nextjs.md)**: Next.js quickstart, toolbar, App Router, Pages Router, middleware/proxy, precompute, dedupe, dashboard pages, marketing pages, suspense fallbacks
 - **[references/sveltekit.md](references/sveltekit.md)**: SvelteKit quickstart, toolbar, hooks setup, precompute with reroute + middleware, dashboard pages, marketing pages
-- **[references/providers.md](references/providers.md)**: All provider adapters — Vercel, Global Config, Statsig, LaunchDarkly, PostHog, GrowthBook, Hypertune, Flagsmith, Reflag, Split, Optimizely, OpenFeature, and custom adapters
+- **[references/providers.md](references/providers.md)**: All provider adapters — Vercel, Global Config, Statsig, LaunchDarkly, PostHog, GrowthBook, Flagsmith, Reflag, Split, Optimizely, OpenFeature, and custom adapters
 - **[references/api.md](references/api.md)**: Full API reference for `flags`, `flags/react`, `flags/next`, and `flags/sveltekit`
