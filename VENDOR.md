@@ -1,7 +1,7 @@
 # Vendored plugin provenance (upstream + pinned SHA)
 
 - compound-engineering  <=  github.com/EveryInc/compound-engineering-plugin (repo root; RAW, foreign-tool mirror dirs + tests/ excluded) @ b36047e1b4b2123df2f3529bf04b5f2a7c5f84e4
-- caveman  <=  github.com/JuliusBrussee/caveman  @ 15581d14007fd01fb3f132016741962f34936ca2  (curated: only the MIT plugin surface — .claude-plugin/ src/ commands/ skills/ agents/ + LICENSE docs. Upstream is now a ~1300-file monorepo; the engine/proxy/rewriter/browse/mcp/shrink/shared-platform product dirs are excluded — not needed for the plugin, and BSL-1.1. skip=$true in the script so the RAW automated re-vendor can't re-bloat it; update manually via the curated clone+copy.)
+- caveman  <=  github.com/JuliusBrussee/caveman  @ 3dc497a7f858c774d6e15b25e8c6120ef3a0eda8  (curated: only the plugin surface — .claude-plugin/ src/ commands/ skills/ agents/ + LICENSE, LICENSE-MIT, NOTICE, LICENSING.md, TRADEMARKS.md, README, GEMINI.md. Upstream is a large monorepo; its engine/proxy/browse/mcp/shrink/Go product dirs are not needed for the plugin and stay out. Since caveman 3.0.0 the whole repo is Apache-2.0 (formerly MIT + BSL-1.1); pre-3.0 MIT text kept in LICENSE-MIT. skip=$true in the script so the RAW automated re-vendor can't pull the monorepo in; update manually via the curated clone+copy.)
 - superclaude  <=  github.com/SuperClaude-Org/SuperClaude_Framework (/plugins/superclaude) @ 1b81e51db955126ec8983769b96dec575d730c05
 - github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ 517b2fcd1b60fa2181ac52dcf8492361ba341180
 - superpowers  <=  github.com/obra/superpowers  @ b36e0829c6d0140e93cfef2ca599b1b07d4a7797
@@ -25,14 +25,6 @@ upstream with no overlay to clobber or re-apply.
 
 (Earlier versions overlaid a forced output style + hook-neutralized `plugin.json`
 onto caveman here; that was moved to the kit so this repo stays a clean passthrough.)
-
-### Upstream backports (cleared by the next re-vendor)
-
-- **caveman `src/hooks/caveman-mode-tracker.js`** (2026-10-15): upstream's 2s stdin
-  watchdog, copied verbatim from upstream `d262ab3` (2026-10-13). Without it the
-  UserPromptSubmit hook ("Tracking caveman mode...") waited out the full 30s hook
-  timeout whenever the prompt payload stalled. `checksums.sha256` updated to match.
-  Not a Fornida edit: the next curated re-vendor brings the same lines and drops this note.
 
 ## Known limitation — compound-engineering on Windows
 
