@@ -1,0 +1,173 @@
+# Fornida plugin maintenance — every other Friday.
+# Re-vendors the automated plugins from upstream (setup-fornida-plugins.ps1), validates every plugin,
+# scans for known CVEs and secrets, and opens a DRAFT PR (or updates the maintenance issue) with the
+# report. It never merges and never publishes: a human reviews and merges, then an org Owner approves
+# the new versions on the claude.ai Plugins page. No Claude/API tokens are used.
+#
+# Owner decision 2026-11-11 (Brian Over): scheduled despite the "minimize Actions minutes" rule —
+# one ~5 minute run every two weeks; off weeks exit in seconds.
+# Needs: Settings -> Actions -> General -> "Allow GitHub Actions to create and approve pull requests".
+name: plugin-updates
+
+on:
+  schedule:
+    - cron: "23 14 * * 5"   # Fridays 14:23 UTC (08:23 CST / 09:23 CDT); even ISO weeks only, see first step
+  workflow_dispatch: {}      # manual run: always runs, whatever the week
+
+permissions:
+  contents: write        # push the update branch
+  pull-requests: write   # open the draft PR, close superseded ones
+  issues: write          # labels + the maintenance issue
+
+concurrency:
+  group: plugin-updates
+  cancel-in-progress: false
+
+env:
+  CLAUDE_CODE_VERSION: "2.1.311"   # pinned; used only for `claude plugin validate` (no login needed)
+  OSV_SCANNER_VERSION: "v2.7.0"    # pinned
+  LABEL: plugin-updates
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Every other Friday
+        id: week
+        run: |
+          week=$(date -u +%V)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ $((10#$week % 2)) -ne 0 ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "ISO week $week is an off week; nothing to do."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.week.outputs.run == 'true'
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        if: steps.week.outputs.run == 'true'
+        with:
+          node-version: "24"   # match the kit's supported-versions.md
+
+      - uses: actions/setup-go@v5
+        if: steps.week.outputs.run == 'true'
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Install tools (pinned)
+        if: steps.week.outputs.run == 'true'
+        run: |
+          npm install -g --no-fund --no-audit "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          go install "github.com/google/osv-scanner/v2/cmd/osv-scanner@${OSV_SCANNER_VERSION}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Re-vendor automated plugins
+        id: revendor
+        if: steps.week.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "base=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git switch -c "auto/plugin-updates-$(date -u +%Y-%m-%d)"
+          set +e
+          pwsh -NoProfile -File ./setup-fornida-plugins.ps1 -NoCommit
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Commit the re-vendored tree
+        id: commit
+        if: steps.week.outputs.run == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "${{ steps.revendor.outputs.exit }}" != "0" ]; then
+            # a failed re-vendor can leave a half-copied plugin: never propose it; the report files an issue
+            git checkout -- . && git clean -fdq -- plugins
+            echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git add -A plugins VENDOR.md
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -q -m "chore(vendor): re-pin plugins to latest upstream (scheduled maintenance)"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate (claude plugin validate)
+        id: validate
+        if: steps.week.outputs.run == 'true'
+        run: |
+          set +e
+          claude plugin validate . > "$RUNNER_TEMP/validate.log" 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/validate.log"
+          # the validator may regenerate manifests in place; that churn is not part of the update
+          git checkout -- . && git clean -fdq -- plugins
+          exit 0
+
+      - name: Scan vendored lockfiles (OSV)
+        id: osv
+        if: steps.week.outputs.run == 'true'
+        run: |
+          set +e
+          osv-scanner scan source -r plugins --format json --output "$RUNNER_TEMP/osv.json"
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Check and report
+        id: report
+        if: steps.week.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          node scripts/plugin-maintenance.mjs \
+            --base "${{ steps.revendor.outputs.base }}" \
+            --revendor-exit "${{ steps.revendor.outputs.exit }}" \
+            --validate-exit "${{ steps.validate.outputs.exit }}" --validate-log "$RUNNER_TEMP/validate.log" \
+            --osv "$RUNNER_TEMP/osv.json" --osv-exit "${{ steps.osv.outputs.exit }}" \
+            --out "$RUNNER_TEMP/report.md" --json "$RUNNER_TEMP/summary.json"
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Open draft PR / update maintenance issue
+        if: steps.week.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "$LABEL" --color FBCA04 --description "Scheduled plugin maintenance" --force >/dev/null
+          summary="$RUNNER_TEMP/summary.json"
+          errors=$(node -p "require('$summary').errors")
+          advisories=$(node -p "require('$summary').advisories")
+          title_state=$([ "$errors" != "0" ] && echo "❌ errors" || echo "review")
+          if [ "${{ steps.commit.outputs.changed }}" = "true" ]; then
+            branch=$(git branch --show-current)
+            git push -u origin "$branch"
+            # one open update PR at a time: close the previous one (its branch goes with it)
+            for n in $(gh pr list --label "$LABEL" --state open --json number --jq '.[].number'); do
+              gh pr close "$n" --delete-branch --comment "Superseded by the $(date -u +%Y-%m-%d) scheduled update." || true
+            done
+            gh pr create --draft --base main --head "$branch" --label "$LABEL" \
+              --title "Plugin updates $(date -u +%Y-%m-%d) ($title_state)" --body-file "$RUNNER_TEMP/report.md"
+          elif [ "$errors" != "0" ] || [ "$advisories" != "0" ]; then
+            issue=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" --body-file "$RUNNER_TEMP/report.md"
+            else
+              gh issue create --label "$LABEL" --title "Plugin maintenance: action needed" --body-file "$RUNNER_TEMP/report.md"
+            fi
+          else
+            echo "Everything current; nothing opened."
+          fi
+
+      - name: Fail on errors
+        if: steps.week.outputs.run == 'true' && steps.report.outputs.exit != '0'
+        run: |
+          echo "::error::Plugin maintenance found errors; see the job summary and the PR/issue."
+          exit 1
