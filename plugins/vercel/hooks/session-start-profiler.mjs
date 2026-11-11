@@ -365,7 +365,7 @@ import {
   readdirSync
 } from "fs";
 import { delimiter, join, resolve } from "path";
-import { execFileSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import {
@@ -385,20 +385,14 @@ import {
 import { writeSessionAgentHarness } from "./skill-telemetry.mjs";
 var FILE_MARKERS = [
   { file: ".eve", skills: ["eve"] },
-  { file: "next.config.js", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.mjs", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.ts", skills: ["nextjs", "turbopack"] },
-  { file: "next.config.mts", skills: ["nextjs", "turbopack"] },
   { file: "vercel.json", skills: ["vercel-cli", "deployments-cicd", "vercel-functions"] },
   { file: "middleware.ts", skills: ["routing-middleware"] },
   { file: "middleware.js", skills: ["routing-middleware"] },
-  { file: "components.json", skills: ["shadcn"] },
   { file: "flags.ts", skills: ["flags-sdk"] },
   { file: ".env.local", skills: ["env-vars"] }
 ];
 var PACKAGE_MARKERS = {
   "eve": ["eve"],
-  "next": ["nextjs"],
   "ai": ["ai-sdk"],
   "@ai-sdk/openai": ["ai-sdk"],
   "@ai-sdk/anthropic": ["ai-sdk"],
@@ -409,15 +403,11 @@ var PACKAGE_MARKERS = {
   "@vercel/postgres": ["vercel-storage"],
   "@vercel/edge-config": ["vercel-storage"],
   "@vercel/global-config": ["vercel-storage"],
-  "@vercel/workflow": ["workflow"],
+  "workflow": ["workflow"],
   "@vercel/sandbox": ["vercel-sandbox"],
   "flags": ["flags-sdk"],
-  "@flags-sdk/vercel": ["flags-sdk"],
-  "@repo/auth": ["next-forge"],
-  "@repo/database": ["next-forge"],
-  "@repo/design-system": ["next-forge"],
-  "@repo/payments": ["next-forge"],
-  "@t3-oss/env-nextjs": ["next-forge"]
+  "@flags-sdk/vercel": ["flags-sdk", "vercel-flags"],
+  "@vercel/flags-core": ["vercel-flags"]
 };
 var SETUP_ENV_TEMPLATE_FILES = [
   ".env.example",
@@ -445,7 +435,6 @@ var SETUP_RESOURCE_DEPENDENCIES = {
 };
 var SETUP_MODE_THRESHOLD = 3;
 var GREENFIELD_DEFAULT_SKILLS = [
-  "nextjs",
   "ai-sdk",
   "vercel-cli",
   "env-vars"
@@ -489,6 +478,7 @@ function profileProject(projectRoot) {
     if (vercelConfig.services) {
       skills.add("vercel-services");
     }
+    if (vercelConfig.daemons) skills.add("daemons");
   }
   return [...skills].sort();
 }
@@ -572,13 +562,41 @@ var SPAWN_STDIO = "ignore pipe ignore".split(" ");
 var EXEC_SYNC_TIMEOUT_MS = 3e3;
 var NUMERIC_VERSION_RE = /\d+(?:\.\d+)*/;
 var WINDOWS_EXECUTABLE_EXTENSIONS = (process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean);
-function getBinaryPathCandidates(binaryName) {
-  if (process.platform !== "win32") {
+var WINDOWS_SPAWNABLE_EXTENSIONS = ".EXE;.COM;.CMD;.BAT".split(";");
+var WINDOWS_SHELL_SCRIPT_RE = /\.(?:cmd|bat)$/i;
+function getBinaryPathCandidates(binaryName, platform = process.platform, pathExtensions = WINDOWS_EXECUTABLE_EXTENSIONS) {
+  if (platform !== "win32") {
     return [binaryName];
   }
   const hasExecutableExtension = /\.[^./\\]+$/.test(binaryName);
-  const suffixes = hasExecutableExtension ? [""] : ["", ...WINDOWS_EXECUTABLE_EXTENSIONS];
+  if (hasExecutableExtension) {
+    return [binaryName];
+  }
+  const isSpawnable = (extension) => WINDOWS_SPAWNABLE_EXTENSIONS.includes(extension.toUpperCase());
+  const suffixes = [
+    ...pathExtensions.filter(isSpawnable),
+    ...pathExtensions.filter((extension) => !isSpawnable(extension)),
+    ""
+  ];
   return suffixes.map((suffix) => `${binaryName}${suffix}`);
+}
+function binaryNeedsShell(binaryPath, platform = process.platform) {
+  return platform === "win32" && WINDOWS_SHELL_SCRIPT_RE.test(binaryPath);
+}
+function buildShellCommand(binaryPath, args) {
+  return [`"${binaryPath}"`, ...args].join(" ");
+}
+function runBinarySync(binaryPath, args) {
+  const options = {
+    timeout: EXEC_SYNC_TIMEOUT_MS,
+    encoding: "utf-8",
+    stdio: SPAWN_STDIO,
+    windowsHide: true
+  };
+  if (binaryNeedsShell(binaryPath)) {
+    return execSync(buildShellCommand(binaryPath, args), options).trim();
+  }
+  return execFileSync(binaryPath, args, options).trim();
 }
 function resolveBinaryFromPath(binaryName) {
   try {
@@ -636,11 +654,7 @@ function checkVercelCli() {
   }
   let currentVersion;
   try {
-    const raw = execFileSync(vercelBinary, VERCEL_VERSION_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO
-    }).trim();
+    const raw = runBinarySync(vercelBinary, VERCEL_VERSION_ARGS);
     const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
     currentVersion = lines[lines.length - 1];
   } catch (error) {
@@ -648,7 +662,7 @@ function checkVercelCli() {
       command: vercelBinary,
       args: VERCEL_VERSION_ARGS.join(" ")
     });
-    return { installed: false, needsUpdate: false };
+    return { installed: true, needsUpdate: false };
   }
   const npmBinary = resolveBinaryFromPath("npm");
   if (!npmBinary) {
@@ -656,12 +670,7 @@ function checkVercelCli() {
   }
   let latestVersion;
   try {
-    const raw = execFileSync(npmBinary, NPM_VIEW_ARGS, {
-      timeout: EXEC_SYNC_TIMEOUT_MS,
-      encoding: "utf-8",
-      stdio: SPAWN_STDIO
-    }).trim();
-    latestVersion = raw;
+    latestVersion = runBinarySync(npmBinary, NPM_VIEW_ARGS);
   } catch (error) {
     logCaughtError(log, "session-start-profiler:npm-latest-version-check-failed", error, {
       command: npmBinary,
@@ -905,17 +914,24 @@ if (isSessionStartProfilerEntrypoint) {
   main();
 }
 export {
+  NPM_VIEW_ARGS,
+  VERCEL_VERSION_ARGS,
+  binaryNeedsShell,
   buildSessionStartProfilerEnvVars,
   buildSessionStartProfilerUserMessages,
+  buildShellCommand,
   checkGreenfield,
+  compareVersionSegments,
   detectAgentHarness,
   detectSessionStartPlatform,
   formatSessionStartProfilerCursorOutput,
+  getBinaryPathCandidates,
   logBrokenSkillFrontmatterSummary,
   normalizeDetectedAgentHarness,
   normalizeSessionStartSessionId,
   parseSessionStartInput,
   profileBootstrapSignals,
   profileProject,
+  resolveBinaryFromPath,
   resolveSessionStartProjectRoot
 };

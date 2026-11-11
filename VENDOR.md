@@ -1,11 +1,11 @@
 # Vendored plugin provenance (upstream + pinned SHA)
 
-- compound-engineering  <=  github.com/EveryInc/compound-engineering-plugin (repo root; RAW, foreign-tool mirror dirs + tests/ excluded) @ b36047e1b4b2123df2f3529bf04b5f2a7c5f84e4
+- compound-engineering  <=  github.com/EveryInc/compound-engineering-plugin (repo root; RAW, foreign-tool mirror dirs + tests/ excluded) @ 4ba48871919650d43a412e3faf0374272fdc209d
 - caveman  <=  github.com/JuliusBrussee/caveman  @ 15581d14007fd01fb3f132016741962f34936ca2  (curated: only the MIT plugin surface — .claude-plugin/ src/ commands/ skills/ agents/ + LICENSE docs. Upstream is now a ~1300-file monorepo; the engine/proxy/rewriter/browse/mcp/shrink/shared-platform product dirs are excluded — not needed for the plugin, and BSL-1.1. skip=$true in the script so the RAW automated re-vendor can't re-bloat it; update manually via the curated clone+copy.)
 - superclaude  <=  github.com/SuperClaude-Org/SuperClaude_Framework (/plugins/superclaude) @ 1b81e51db955126ec8983769b96dec575d730c05
-- github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ 517b2fcd1b60fa2181ac52dcf8492361ba341180
-- superpowers  <=  github.com/obra/superpowers  @ b36e0829c6d0140e93cfef2ca599b1b07d4a7797
-- vercel  <=  github.com/vercel/vercel-plugin  @ dca8da784e876cbb8e81bd98cb5b2b87323449ca
+- github  <=  github.com/anthropics/claude-plugins-official (/external_plugins/github) @ 43fd1f9db0941b2b83cb62268e35970d4a67c202
+- superpowers  <=  github.com/obra/superpowers  @ 22f0b463e7a5e579904dd6211a520321035526f7
+- vercel  <=  github.com/vercel/vercel-plugin  @ a51b34618683929ee83c5a6e001c2da8261b3479
 
 ## First-party plugins (Fornida-authored, not vendored)
 

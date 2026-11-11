@@ -1,6 +1,6 @@
 ---
 name: ce-explain
-description: "Explain how something works and why it has its current shape, grounding behavior in evidence and separating documented rationale from inference. Use when understanding a system, change, idea, or recent work is needed for learning or further work, including deeper teaching explanations. Use ce-pov for a judgment or recommendation."
+description: "Explain how and why something has its current shape, or what happened over a window of work, grounded in evidence. Use when the user asks for an explanation. Use ce-pov for a judgment or recommendation."
 argument-hint: "[question, concept, change, or work window] [intended use or reader]"
 ---
 
@@ -12,11 +12,11 @@ Produce an explanation that answers the scoped question and gives its consumer e
 
 ## Consumer and interaction
 
-Adapt depth and presentation to the intended readers and use. A person may need a working answer; a calling agent may need a teaching artifact for someone else. Do not infer the output from the caller's identity alone. When contributing to an ongoing workflow, deliver the requested result and leave continuation to its owner. Do not add destination menus or follow-up offers to that return.
+Adapt depth and presentation to the intended readers and use. A person may need a working answer; a calling agent may need a teaching artifact for someone else. Do not infer the output from the caller's identity alone. When contributing to an ongoing workflow, deliver the requested result and leave continuation to its owner, the calling workflow. Do not add destination menus or follow-up offers to that return.
 
 Resolve discoverable facts before asking. Ask only when missing information materially changes the answer and cannot be resolved from the request or evidence. If interaction is unavailable, return the unresolved question and its consequence rather than waiting or inventing an answer. A result may explain verified behavior while reporting that its historical rationale is unknown.
 
-**Read `references/orchestration.md` before grounding, the first blocking question, or subagent dispatch.** It owns evidence gathering, tool use, model tiers, and their degradation rules.
+**Read `references/orchestration.md` before grounding, the first blocking question, or subagent dispatch.** It defines evidence gathering, tool use, model tiers, and their fallbacks.
 
 ## Artifact Root
 
@@ -34,7 +34,7 @@ An explainer lands under `<root>/explainers/` only when archived to the repo, an
 
 ### Phase 1: Establish the question and use
 
-Read `references/intake.md` now. It owns subject and window resolution, existing input tokens, and delivery selection. Explain only the requested subject. A bare invocation with no recoverable subject needs clarification under the interaction rule above, not an invented topic or default artifact.
+Read `references/intake.md` now. It defines how the subject and time window are resolved, the input tokens, and how the delivery form is chosen. Explain only the requested subject. A bare invocation with no recoverable subject needs clarification under the interaction rule above, not an invented topic or default artifact.
 
 ### Phase 2: Ground
 
@@ -54,22 +54,24 @@ RUN_DIR="$SCRATCH_ROOT/ce-explain/$(date +%Y%m%d)-$(openssl rand -hex 3)";
 echo "$RUN_DIR";
 ```
 
+A behavior trace that splits across ownership boundaries writes scout dossiers. Create this run directory before dispatching those scouts.
+
 - **Diff mode.** **Empty range** or missing subject: do not silently explain something else. Report that before explaining an adjacent thing. Use a substitute only when the request permits it or the user agrees; name the substitution in the result and artifact `Subject` when present. Otherwise return the unresolved scope to the caller.
-- **Recap mode.** Do not pre-scan, count, or characterize the window in the main conversation. Instead dispatch a generic subagent directly at the extraction tier, seeded with `references/agents/work-recap-scout.md` and passed the resolved window, repo root, and `$RUN_DIR`. **Empty window:** report the absence of activity and finish without an explainer artifact. **When the harness exposes no subagent primitive**, run the scout inline with its prompt's sources and budgets, still write `recap-evidence.md`, and form no view of the window until it is done. Dispatch failures follow the orchestration reference's degradation rule.
+- **Recap mode.** Do not pre-scan, count, or characterize the window in the main conversation. Instead dispatch a generic subagent directly at the extraction tier, seeded with `references/agents/work-recap-scout.md` and passed the resolved window, repo root, and `$RUN_DIR`. **Empty window:** report the absence of activity and finish without an explainer artifact. **When the harness exposes no subagent primitive**, run the scout inline with its prompt's sources and budgets, still write `recap-evidence.md`, and form no view of the window until it is done. If dispatch fails, follow the fallback rule in `references/orchestration.md`.
 
 ### Phase 3: Compose the explanation
 
 Answer the question using the evidence, preserving material constraints and uncertainty. Before delivery, check every factual claim against its source. A function call does not establish guarantees about its uninspected implementation. Remove unsupported claims or state their uncertainty where they appear, including in diagrams and exercise answers. Choose prose, code, tables, or visuals when they improve understanding; no particular arrangement is required. Keep attribution accurate when explaining work by multiple people. When selecting from more evidence than the requested scope or depth can hold, disclose the selection; never silently present a partial account as exhaustive.
 
-For an answer or material another workflow will incorporate, return that content directly. Each passage must carry the qualifications needed to use it accurately without separate notes. Do not create a standalone artifact unless the intended use needs one.
+For an answer or material another workflow will incorporate, return that content directly. Each passage must carry the qualifications needed to use it accurately without separate notes. When another workflow will use the answer, that return includes the evidence, the constraints that still apply, and the unanswered questions. Do not create a standalone artifact unless the intended use needs one.
 
 For a standalone artifact, read `references/explainer-html.md` or `references/explainer-markdown.md` at compose time for the selected format's compatibility and metadata requirements. For teaching artifacts, also read `references/check-in.md`. The run never blocks on the check-in; any exercises are static content in the artifact. Write `$RUN_DIR/explainer.html` or `explainer.md`, then deliver an inline summary plus the file path.
 
 ### Phase 4: Deliver
 
-A delivered answer or local artifact completes the explanation. Do not require a destination choice or manufacture follow-on work. If a destination was requested, read `references/destinations.md` before acting; it owns the destination adapters and publication consent. Return content to a workflow that owns the surrounding document rather than placing or publishing it yourself.
+A delivered answer or local artifact completes the explanation. Do not require a destination choice or manufacture follow-on work. If a destination was requested, read `references/destinations.md` before acting; it defines each destination and the consent publishing needs. When a calling workflow owns the surrounding document, return the content to it rather than placing or publishing it yourself.
 
-Publishing to ht-ml.app is never headless and never inferred. Naming it is a choice of destination rather than confirmation after its public-publishing warning. If confirmation cannot be obtained, do not publish; preserve the canonical HTML and report its local `$RUN_DIR/explainer.html` path.
+Public publishing is never headless and never inferred. Naming a public host picks the destination; it is not confirmation after the public-publishing warning. If confirmation cannot be obtained, do not publish; preserve the canonical file and report its local `$RUN_DIR` path.
 
 ## Boundaries
 

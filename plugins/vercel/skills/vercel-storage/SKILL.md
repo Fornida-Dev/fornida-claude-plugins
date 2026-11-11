@@ -65,6 +65,10 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@prisma/client\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@prisma/client\b'
     - '\byarn\s+add\s+[^\n]*@prisma/client\b'
+    - '\bnpm\s+(install|i|add)\s+[^\n]*@prisma/orm-postgres\b'
+    - '\bpnpm\s+(install|i|add)\s+[^\n]*@prisma/orm-postgres\b'
+    - '\bbun\s+(install|i|add)\s+[^\n]*@prisma/orm-postgres\b'
+    - '\byarn\s+add\s+[^\n]*@prisma/orm-postgres\b'
     - '\bnpm\s+(install|i|add)\s+[^\n]*\bmongodb\b'
     - '\bpnpm\s+(install|i|add)\s+[^\n]*\bmongodb\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*\bmongodb\b'
@@ -77,6 +81,7 @@ metadata:
     - '\bpnpm\s+(install|i|add)\s+[^\n]*@libsql/client\b'
     - '\bbun\s+(install|i|add)\s+[^\n]*@libsql/client\b'
     - '\byarn\s+add\s+[^\n]*@libsql/client\b'
+    - '\bvercel\s+storage\b'
   importPatterns:
     - "@vercel/blob"
     - "@vercel/edge-config"
@@ -87,6 +92,7 @@ metadata:
     - "@vercel/postgres"
     - "@supabase/supabase-js"
     - "@prisma/client"
+    - "@prisma/orm-postgres"
 validate:
   -
     pattern: from\s+['"]@vercel/kv['"]
@@ -109,18 +115,10 @@ validate:
     skipIfFileContains: '@vercel/global-config'
 chainTo:
   -
-    pattern: "from\\s+['\"]@vercel/postgres['\"]"
-    targetSkill: nextjs
-    message: '@vercel/postgres is sunset — loading Next.js guidance for integrating @neondatabase/serverless with App Router.'
-  -
     pattern: "@vercel/postgres"
     targetSkill: vercel-storage
     message: '@vercel/postgres is sunset — migrate to @neondatabase/serverless. Run `vercel integration add neon` for one-click Marketplace provisioning with unified billing.'
     skipIfFileContains: "@neondatabase/serverless|from\\s+['\"]@neondatabase"
-  -
-    pattern: "from\\s+['\"]@vercel/kv['\"]"
-    targetSkill: nextjs
-    message: '@vercel/kv is sunset — loading Next.js guidance for integrating @upstash/redis with App Router.'
   -
     pattern: "createPool\\s*\\(|from\\s+['\"]@vercel/postgres/pool['\"]"
     targetSkill: vercel-storage
@@ -140,9 +138,9 @@ chainTo:
     targetSkill: vercel-storage
     message: 'MongoDB/Mongoose import detected — loading Vercel Storage guidance for Marketplace-native database options (Neon Postgres, Upstash Redis) with auto-provisioned env vars.'
   -
-    pattern: "from\\s+['\"]@prisma/client['\"]|from\\s+['\"]prisma['\"]"
+    pattern: "from\\s+['\"]@prisma/client['\"]|from\\s+['\"]@prisma/orm-postgres[^'\"]*['\"]|from\\s+['\"]prisma['\"]"
     targetSkill: vercel-storage
-    message: 'Prisma ORM detected — loading Vercel Storage guidance for Neon Postgres integration with Prisma, connection pooling, and Marketplace provisioning.'
+    message: 'Prisma ORM detected — loading Vercel Storage guidance: Prisma Postgres (recommended for Prisma ORM apps), the other Marketplace Postgres providers (Neon, Supabase, AWS Aurora, Nile), connection pooling, and Marketplace provisioning.'
     skipIfFileContains: "@neondatabase/serverless|POSTGRES_PRISMA_URL"
   -
     pattern: "from\\s+['\"]@libsql/client['\"]"
@@ -168,6 +166,8 @@ retrieval:
   intents:
     - add storage
     - set up database
+    - create a redis database
+    - create a postgres database
     - configure blob storage
     - use global config
     - use edge config
@@ -189,7 +189,8 @@ You are an expert in Vercel's storage options. Know which products are active, w
 
 Choose storage provisioning paths in this order:
 
-1. **Preferred**: Vercel-managed Neon/Upstash through the Vercel Marketplace (`vercel integration add ...` or dashboard). This path auto-provisions accounts/resources and injects environment variables into the linked Vercel project.
+1. **Preferred**: Vercel-managed Neon/Upstash through the Vercel Marketplace (`vercel install <integration>` or dashboard). This path auto-provisions accounts/resources and injects environment variables into the linked Vercel project. Do not use `vercel storage create` for these: it only creates Blob stores and Global Config (see [Installing Marketplace Storage](#installing-marketplace-storage)).
+   - **Prisma ORM projects** (`prisma/schema.prisma`): prefer Prisma Postgres, `vercel install prisma`.
 2. **Fallback**: Provider CLI/manual provisioning only when Marketplace is unavailable or you must use an existing external account.
 
 When using fallback/manual provisioning, you must add/sync environment variables yourself and then re-run `vercel env pull .env.local --yes` locally.
@@ -217,8 +218,11 @@ const blob = await put('images/photo.jpg', file, {
 const privateBlob = await put('docs/secret.pdf', file, {
   access: 'private',
 })
-// Read private file back
-const privateFile = await get(privateBlob.url) // returns ReadableStream + metadata
+// Read a private file by pathname
+const privateFile = await get('docs/secret.pdf', { access: 'private' })
+if (privateFile?.statusCode === 200) {
+  // privateFile.stream contains the body; privateFile.blob contains metadata
+}
 
 // Client upload (up to 5 TB)
 import { upload } from '@vercel/blob/client'
@@ -232,9 +236,10 @@ const { blobs } = await list()
 
 // Conditional get with ETags
 const response = await get('images/photo.jpg', {
+  access: 'public', // `access` is required and must match the store
   ifNoneMatch: previousETag,
 })
-if (response.statusCode === 304) {
+if (response?.statusCode === 304) {
   // Not modified, use cached version
 }
 
@@ -242,9 +247,9 @@ if (response.statusCode === 304) {
 await del('images/photo.jpg')
 ```
 
-**Private Storage** (public beta): Use `access: 'private'` for files that should not be publicly accessible. Read them back with `get()`. Do NOT use private access for files that need to be served publicly — it leads to slow delivery and high egress costs.
+**Private Storage** (generally available): Create a private store with `vercel blob create-store <name> --access private`. Connected projects use short-lived OIDC credentials and `BLOB_STORE_ID` by default. Use `access: 'private'` for uploads and reads. To deliver a private file, authenticate the request in your own route, call `get(pathname, { access: 'private' })`, return 404 when the result is `null`, and otherwise stream `result.stream` to the caller. Use `presignUrl()` when a caller needs temporary direct access. Pass `useCache: false` only when a read must reflect an overwrite immediately.
 
-**Blob Data Transfer**: Vercel Blob uses two delivery strategies — **Fast Data Transfer** (94 cities, latency-optimized) and **Blob Data Transfer** (18 hubs, volume-optimized for large assets). The system automatically routes via the optimal path.
+**Blob Data Transfer**: Public blob downloads, and Functions fetching private blobs from the store, use **Blob Data Transfer** (19 regional hubs, cost-optimized for large assets). When a Function streams a private blob to users, that response uses **Fast Data Transfer** (126+ PoPs across 51 countries, latency-optimized).
 
 **Use when**: Media files, user uploads, documents, any large unstructured data.
 
@@ -400,20 +405,42 @@ const { data, error } = await supabase.from('users').select('*')
 
 Install via Vercel Marketplace: `vercel integration add supabase`
 
-### Prisma ORM (Marketplace Native)
+### Prisma Postgres (Marketplace Native)
 
-Type-safe ORM with auto-generated client, migrations, and Prisma Accelerate for connection pooling.
+Managed PostgreSQL with a PgBouncer connection pooler on every plan. Any Postgres client works: Prisma ORM, Drizzle, Kysely, or `pg`.
+
+Recommended for apps that use Prisma ORM. It's built by the team behind Prisma ORM:
+
+- **Autoscaling, nothing to manage:** no instance to size or upgrade, connection pooling on every plan, and `vercel integration add prisma` sets `DATABASE_URL`.
+- **Free to start:** a free plan with no credit card. Paid plans bill per operation, not per instance hour.
+- **Agent-ready:** the [Prisma MCP server](https://www.prisma.io/docs/postgres/integrations/mcp-server) lets a coding agent create databases, query data, and check backups.
+- **ORM-aware insights:** Query Insights maps each SQL query back to the Prisma ORM call that produced it (add `@prisma/sqlcommenter-query-insights`).
+
+Connecting a database sets `DATABASE_URL`, `POSTGRES_URL`, and `PRISMA_DATABASE_URL` on each connected environment. All three hold the **direct** connection string (host `db.prisma.io`), not the pooled one. Read `DATABASE_URL` in new code: on older databases `PRISMA_DATABASE_URL` can still hold a hosted Prisma Accelerate URL (`prisma+postgres://accelerate.prisma-data.net/...`), and Accelerate is retired on December 1, 2026.
+
+Direct connections are capped low (10 on Free and Starter, 5 of them reserved for the platform), so production traffic from Vercel Functions should use the pooled string (host `pooled.db.prisma.io`). The integration doesn't set it, so the user adds it:
+
+1. Run `vercel integration open prisma` to open Prisma Console, select the database, and create a connection string. Console shows a pooled and a direct string.
+2. Add the pooled string under a new name, for example `vercel env add DATABASE_URL_POOLED production`, once per connected environment. Don't overwrite the integration's variables.
+3. Keep the direct `DATABASE_URL` for migrations and Prisma CLI commands, then redeploy.
 
 ```bash
-npm install prisma @prisma/client
-npx prisma init
+npm install pg @vercel/functions
 ```
 
 ```ts
-import { PrismaClient } from '@prisma/client'
+import { Pool } from 'pg'
+import { attachDatabasePool } from '@vercel/functions'
 
-const prisma = new PrismaClient()
-const users = await prisma.user.findMany()
+// Module scope: concurrent requests on a Fluid compute instance share one pool
+const pool = new Pool({
+  // DATABASE_URL_POOLED is the variable added above; the direct DATABASE_URL works until then
+  connectionString: process.env.DATABASE_URL_POOLED ?? process.env.DATABASE_URL,
+})
+// Closes idle connections before the instance suspends
+attachDatabasePool(pool)
+
+const { rows } = await pool.query('SELECT * FROM users')
 ```
 
 Install via Vercel Marketplace: `vercel integration add prisma`
@@ -476,7 +503,7 @@ const turso = createClient({
 const result = await turso.execute('SELECT * FROM users')
 ```
 
-Install via Vercel Marketplace: `vercel integration add turso`
+Install via Vercel Marketplace: `vercel integration add tursocloud`
 
 ## Storage Decision Matrix
 
@@ -487,7 +514,7 @@ Install via Vercel Marketplace: `vercel integration add turso`
 | Relational data, SQL queries | Neon Postgres | `@neondatabase/serverless` |
 | Key-value cache, sessions, rate limiting | Upstash Redis | `@upstash/redis` |
 | Postgres + auth + realtime + storage | Supabase | `@supabase/supabase-js` |
-| Type-safe ORM with migrations | Prisma | `@prisma/client` |
+| Postgres for a Prisma ORM app | Prisma Postgres | `@prisma/client` |
 | Document database, flexible schemas | MongoDB Atlas | `mongodb` |
 | Reactive backend with real-time sync | Convex | `convex` |
 | Edge-native SQLite with replicas | Turso | `@libsql/client` |
@@ -504,8 +531,6 @@ Install via Vercel Marketplace: `vercel integration add turso`
 
 ```
 
-**Drop-in replacement**: For minimal migration effort, use `@neondatabase/vercel-postgres-compat` which provides API-compatible wrappers for `@vercel/postgres` imports.
-
 ### From @vercel/kv → Upstash Redis
 ```diff
 - import { kv } from '@vercel/kv'
@@ -519,18 +544,47 @@ Install via Vercel Marketplace: `vercel integration add turso`
 
 ## Installing Marketplace Storage
 
-Use the Vercel CLI or the Marketplace dashboard at `https://vercel.com/dashboard/{team}/stores`:
+`vercel storage create` only creates first-party stores (`--type blob` or `--type global-config`). Redis, Postgres, and every other Marketplace database are provisioned with `vercel install` (alias of `vercel integration add`), which installs the integration if needed, creates the resource, connects it to the linked project, and runs `vercel env pull`:
 
 ```bash
-# Install a storage integration (auto-provisions env vars)
-vercel integration add neon
-vercel integration add upstash
+# Find storage integrations and their product slugs
+vercel integration discover --category storage
+
+# See the products, metadata keys, and billing plans for one integration
+vercel install upstash --help
+
+# Provision without prompts (name, plan, and metadata come from --help above)
+vercel install upstash --name my-redis --billing-plan <plan-id> --meta primaryRegion=iad1
+
+# Pick a product from a multi-product integration
+vercel install <integration>/<product>
+
+# Provision without connecting to the linked project (also skips env pull)
+vercel install neon --name my-db --no-connect
 
 # List installed integrations
 vercel integration list
 ```
 
+`vercel install <slug>` (or `vercel i <slug>`) is an alias for `vercel integration add <slug>`. Either form also installs the provider's own agent skills from [skills.sh](https://skills.sh) for providers that publish them — follow those instead of recalling the provider's API from memory. If the database provisions but only the skill install fails, don't re-run the command — that can create a *second* database. Have the user run the `npx skills add …` recovery command the CLI prints instead.
+
+After provisioning, `vercel storage` works across first-party and Marketplace stores:
+
+```bash
+vercel storage status                 # stores, projects, environments, and env vars for the linked project
+vercel storage list                   # every store in the team, including Marketplace resources
+vercel storage connect my-redis --yes # connect an existing store to the linked project
+```
+
+Deleting a Marketplace resource uses `vercel integration resource delete <resource>`, not `vercel storage delete`.
+
 Browse additional storage options at the [Vercel Marketplace](https://vercel.com/marketplace). Installing via the CLI or dashboard (`https://vercel.com/dashboard/{team}/integrations`) automatically provisions accounts, creates databases, and sets environment variables.
+
+## Cross-References
+
+- **Choosing and installing a non-storage integration** → `⤳ skill: marketplace`
+- **Pulling and syncing the provisioned env vars** → `⤳ skill: env-vars`
+- **Sign up / log in providers** → `⤳ skill: auth`
 
 ## Official Documentation
 

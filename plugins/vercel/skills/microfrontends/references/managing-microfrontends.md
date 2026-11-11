@@ -24,14 +24,14 @@ If you omit `--group`, the command is interactive and lets you select a group. I
 # Interactive selection
 vercel microfrontends inspect-group
 
-# JSON output for scripting/agents
-vercel mf inspect-group --group="My Group" --format=json
+# JSON output for scripting/agents (`--json` needs CLI 58.1+; older CLIs use `--format=json`)
+vercel mf inspect-group --group="My Group" --json
 
 # With a custom config filename
-vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --format=json
+vercel mf inspect-group --group="My Group" --config-file-name=microfrontends.jsonc --json
 ```
 
-> **Tip for agents:** After the user creates a group, run `vercel mf inspect-group --group="<name>" --format=json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
+> **Tip for agents:** After the user creates a group, run `vercel mf inspect-group --group="<name>" --json` to get the project metadata needed to automate the remaining setup (generating `microfrontends.json`, installing `@vercel/microfrontends`, and adding framework integrations).
 
 ## Adding Microfrontends
 
@@ -55,14 +55,14 @@ Changes take effect on the next deployment.
 vercel microfrontends remove-from-group
 ```
 
-After removal, update `microfrontends.json` in the default app to remove the project's entry — the CLI will warn you if it's still referenced but won't block the removal.
+After removal, update `microfrontends.json` in the default app to remove the project's entry — if it's still referenced, the CLI warns you and asks for an extra confirmation; in a non-interactive environment, pass `--yes` or the removal fails.
 
 **Dashboard:**
 1. Remove the microfrontend from `microfrontends.json` in the default app
 2. Visit **Settings** for the project
 3. Click **Microfrontends** → **Remove from Group**
 
-> The default application can only be removed after all other projects in the group are removed.
+> The default application can only be removed after all other projects in the group are removed, and only via the dashboard or `delete-group` — the CLI's `remove-from-group` cannot remove the default application.
 
 ## Deleting a Group
 
@@ -76,7 +76,7 @@ vercel microfrontends delete-group
 vercel mf delete-group --group="My Group"
 ```
 
-**Dashboard:** Go to the group's settings in **Settings** → **Microfrontends** and delete the group.
+**Dashboard:** in team **Settings** → **Microfrontends** (or the default app's **Microfrontends** settings), open the group's menu and select **Delete Group** — no need to remove projects first.
 
 ## Fallback Environment
 
@@ -87,7 +87,7 @@ Controls where requests are routed when a microfrontend isn't built for a specif
 | Setting | Behavior |
 |---|---|
 | `Same Environment` | Falls back to a deployment in the same environment for the other project. Vercel auto-generates Preview deployments on the production branch. |
-| `Production` | Falls back to the promoted Production deployment of the other project. |
+| `Production` | Falls back to the promoted Production deployment of the other project. In a custom environment, only when the other project has no custom environment with the same name. |
 | Custom environment name | Falls back to a deployment in the specified custom environment. |
 
 ### Fallback behavior matrix
@@ -98,7 +98,7 @@ Controls where requests are routed when a microfrontend isn't built for a specif
 | Preview | Production | Preview | Production |
 | Preview | `staging` | Preview | `staging` |
 | `staging` | Same Environment | `staging` | `staging` |
-| `staging` | Production | `staging` | Production |
+| `staging` | Production | `staging` | `staging` if the project has one, otherwise Production |
 
 Configure in **Settings** → Microfrontends group → **Fallback Environment**.
 
@@ -133,13 +133,15 @@ Add `PrefetchCrossZoneLinks` to your root layout in **all** microfrontend apps:
 
 ```tsx
 // app/layout.tsx
-import { PrefetchCrossZoneLinks } from '@vercel/microfrontends/next/client';
+import { PrefetchCrossZoneLinks, PrefetchCrossZoneLinksProvider } from '@vercel/microfrontends/next/client';
 
 export default function RootLayout({ children }) {
   return (
     <html>
       <body>
-        {children}
+        <PrefetchCrossZoneLinksProvider>
+          {children}
+        </PrefetchCrossZoneLinksProvider>
         <PrefetchCrossZoneLinks />
       </body>
     </html>
@@ -155,12 +157,14 @@ Add `PrefetchCrossZoneLinks` to `_app.tsx`:
 
 ```tsx
 // pages/_app.tsx
-import { PrefetchCrossZoneLinks } from '@vercel/microfrontends/next/client';
+import { PrefetchCrossZoneLinks, PrefetchCrossZoneLinksProvider } from '@vercel/microfrontends/next/client';
 
 export default function App({ Component, pageProps }) {
   return (
     <>
-      <Component {...pageProps} />
+      <PrefetchCrossZoneLinksProvider>
+        <Component {...pageProps} />
+      </PrefetchCrossZoneLinksProvider>
       <PrefetchCrossZoneLinks />
     </>
   );
