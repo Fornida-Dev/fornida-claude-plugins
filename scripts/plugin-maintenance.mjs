@@ -166,13 +166,69 @@ export function summarizeOsv(report, root = "") {
       if (!vulns.length) continue;
       const sev = (p.groups || []).map((g) => parseFloat(g.max_severity)).filter((n) => !Number.isNaN(n));
       const max = sev.length ? Math.max(...sev) : null;
-      rows.push({ source: src, pkg: `${p.package.name}@${p.package.version}`, ids: vulns.map((v) => v.id), max });
+      rows.push({ source: src, name: p.package.name, version: p.package.version, ecosystem: p.package.ecosystem || "", pkg: `${p.package.name}@${p.package.version}`, ids: vulns.map((v) => v.id), max });
     }
   }
   rows.sort((a, b) => (b.max ?? -1) - (a.max ?? -1));
   return rows;
 }
 const sevLabel = (n) => (n == null ? "unknown" : n >= 9 ? "critical" : n >= 7 ? "high" : n >= 4 ? "medium" : "low");
+
+// ---------- runtime exposure: does code that runs on staff machines load the vulnerable package? ----------
+// Claude Code never installs a plugin's dependencies, so a lockfile entry only matters when the plugin
+// SHIPS the package (a vendored node_modules) or its runtime code (hooks, skills, agents, commands, src)
+// imports it by name. Dev tooling (root scripts/, src/ CLIs, tests, site/, docs) does not run on staff machines;
+// a folder a hook runs from (caveman's src/hooks) does, and run() adds those files.
+const RUNTIME_DIRS = /^(hooks|skills|agents|commands)\//;
+const NOT_RUNTIME = /(^|\/)(tests?|__tests__|fixtures|examples?|docs|site)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
+export function bareSpecifiers(text) {
+  const out = new Set();
+  const re = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)["']([^"'./][^"']*)["']/gm;
+  for (const m of String(text).matchAll(re)) {
+    let spec = m[1].replace(/^npm:/, "");
+    if (spec.startsWith("node:")) continue;
+    const parts = spec.split("/");
+    out.add(spec.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0]);
+  }
+  return out;
+}
+export function runtimePackages(pluginDir, extraFiles = []) {
+  const imported = new Set(), shipped = new Map();
+  const files = walk(pluginDir).filter((f) => { const r = rel(pluginDir, f); return RUNTIME_DIRS.test(r) && !NOT_RUNTIME.test(r) && /\.([cm]?js|[cm]?ts|jsx|tsx)$/.test(f); });
+  for (const f of [...files, ...extraFiles]) { try { bareSpecifiers(fs.readFileSync(f, "utf8")).forEach((x) => imported.add(x)); } catch { /* unreadable */ } }
+  // a shipped node_modules is real runtime code (walk() skips node_modules, so look for it directly)
+  (function scan(dir, depth) {
+    if (depth > 6) return;
+    let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      if (!e.isDirectory() || e.name === ".git") continue;
+      const p = path.join(dir, e.name);
+      if (e.name === "node_modules") {
+        for (const pj of walkManifests(p)) { const j = tryJson(pj); if (j && j.name) { if (!shipped.has(j.name)) shipped.set(j.name, new Set()); shipped.get(j.name).add(String(j.version)); } }
+      } else scan(p, depth + 1);
+    }
+  })(pluginDir, 0);
+  return { imported, shipped };
+}
+function walkManifests(nm) {
+  const out = [];
+  let ents = []; try { ents = fs.readdirSync(nm, { withFileTypes: true }); } catch { return out; }
+  for (const e of ents) {
+    if (!e.isDirectory()) continue;
+    const p = path.join(nm, e.name);
+    if (e.name.startsWith("@")) { for (const s of fs.readdirSync(p, { withFileTypes: true })) if (s.isDirectory()) out.push(path.join(p, s.name, "package.json")); }
+    else out.push(path.join(p, "package.json"));
+  }
+  return out;
+}
+// row -> "runtime" (shipped or imported by runtime code) | "build"
+export function exposureOf(row, runtimeByPlugin) {
+  const m = String(row.source).match(/^plugins\/([^/]+)\//);
+  const rt = m && runtimeByPlugin.get(m[1]);
+  if (!rt || (row.ecosystem && row.ecosystem !== "npm")) return "build";
+  if (rt.shipped.has(row.name) && rt.shipped.get(row.name).has(String(row.version))) return "runtime";
+  return rt.imported.has(row.name) ? "runtime" : "build";
+}
 
 // ---------- network lookups (gh for GitHub, fetch for npm/OSV); failures become warnings ----------
 
@@ -299,8 +355,25 @@ export async function run(root, opt) {
     if (code !== "0" && code !== "1") warnings.push(`osv-scanner did not complete (exit ${code}); lockfile CVEs not checked this run`);
     else if (!rep) warnings.push("osv-scanner output missing or unreadable");
     else osvRows = summarizeOsv(rep, root);
-    if (osvRows.length) advisories.push(`${osvRows.length} vulnerable package(s) in vendored lockfiles (details below)`);
   }
+  const runtimeByPlugin = new Map();
+  for (const r of osvRows) {
+    const m = String(r.source).match(/^plugins\/([^/]+)\//);
+    if (m && !runtimeByPlugin.has(m[1])) {
+      const dir = path.join(root, "plugins", m[1]);
+      // every script in a folder a hook runs from (its local imports live beside it)
+      const hookDirs = new Set([...hookScripts].filter((h) => h.startsWith(`plugins/${m[1]}/`)).map((h) => path.dirname(path.join(root, h))));
+      const extra = [...hookDirs].flatMap((d) => walk(d)).filter((f) => /\.([cm]?js|[cm]?ts)$/.test(f) && !NOT_RUNTIME.test(rel(dir, f)));
+      runtimeByPlugin.set(m[1], runtimePackages(dir, extra));
+    }
+    r.exposure = exposureOf(r, runtimeByPlugin);
+  }
+  const runtimeRows = osvRows.filter((r) => r.exposure === "runtime"), buildRows = osvRows.filter((r) => r.exposure === "build");
+  for (const r of runtimeRows) {
+    const msg = `${r.pkg} (${sevLabel(r.max)}) is loaded by code that runs on staff machines (${r.source.replace(/\/[^/]*$/, "")}): ${r.ids.slice(0, 4).join(", ")}`;
+    if (r.max != null && r.max >= 7) errors.push(msg); else advisories.push(msg);
+  }
+  if (buildRows.length) advisories.push(`${buildRows.length} vulnerable package(s) in vendor build/test dependencies only: not installed or loaded on staff machines; the vendor fixes them (details below)`);
 
   // ---------- report ----------
   const status = errors.length ? "❌ errors found" : advisories.length ? "⚠️ updates or advisories" : "✅ all current";
@@ -318,9 +391,9 @@ export async function run(root, opt) {
   if (review.length) lines.push("### Review these first (code that runs on every machine, or changed terms)", "", ...review.slice(0, 60).map((r) => `- ${r}`), ...(review.length > 60 ? [`- …and ${review.length - 60} more`] : []), "");
   lines.push("### Advisories", "", ...(advisories.length ? advisories.map((a) => `- ${a}`) : ["- none"]), "");
   if (osvRows.length) {
-    lines.push("<details><summary>Vendored lockfile vulnerabilities (dev/build dependencies; not installed by Claude at runtime)</summary>", "", "| Severity | Package | Lockfile | IDs |", "|---|---|---|---|");
-    for (const r of osvRows.slice(0, 50)) lines.push(`| ${sevLabel(r.max)} | ${r.pkg} | ${r.source} | ${r.ids.slice(0, 4).join(", ")}${r.ids.length > 4 ? " …" : ""} |`);
-    lines.push("", "</details>", "");
+    lines.push("<details><summary>Vulnerable packages in vendored lockfiles (runtime = loaded on staff machines; build = vendor tooling only)</summary>", "", "| Exposure | Severity | Package | Lockfile | IDs |", "|---|---|---|---|---|");
+    for (const r of [...runtimeRows, ...buildRows].slice(0, 50)) lines.push(`| ${r.exposure} | ${sevLabel(r.max)} | ${r.pkg} | ${r.source} | ${r.ids.slice(0, 4).join(", ")}${r.ids.length > 4 ? " …" : ""} |`);
+    lines.push("", "Exposure is judged from what the plugin ships and what its hooks (and the folders they run from), skills, agents and commands import by name; code bundled into a single file is not detected.", "", "</details>", "");
   }
   if (warnings.length) lines.push("### Warnings (checks that could not run)", "", ...warnings.map((w) => `- ${w}`), "");
   lines.push(`_Checked: ${(market && market.plugins || []).length} plugins, ${hookScripts.size} hook scripts, ${checked} script syntax checks, ${changed.length} changed files._`);
