@@ -5,6 +5,7 @@ metadata:
   priority: 3
   docs:
     - "https://vercel.com/docs/integrations"
+    - "https://vercel.com/docs/agent-resources/vercel-plugin"
   sitemap: "https://vercel.com/sitemap.xml"
   pathPatterns:
     - "integration.json"
@@ -12,12 +13,15 @@ metadata:
     - '\bvercel\s+integration\b'
     - '\bvercel\s+integration\s+add\b'
     - '\bvercel\s+integration\s+discover\b'
+    - '\bvercel\s+install\b'
+    - '\bvercel\s+i\b'
 retrieval:
   aliases:
     - vercel integrations
     - marketplace
     - third party services
     - add ons
+    - vercel install
   intents:
     - install integration
     - manage marketplace
@@ -27,12 +31,14 @@ retrieval:
     - Vercel Marketplace
     - integration
     - vercel integration
+    - vercel install
     - unified billing
+    - provider agent skills
 chainTo:
   -
-    pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
+    pattern: 'NEON_|POSTGRES_|DATABASE_URL|@neondatabase|@vercel/postgres|@upstash/|@vercel/kv|@supabase/|@prisma/client|@prisma/orm-postgres|\bmongodb\b|mongoose|@libsql/|\bconvex\b|@vercel/blob'
     targetSkill: vercel-storage
-    message: 'Database/storage integration detected — loading Storage guidance (Neon, Upstash, Supabase, Prisma, Mongo, …), connection pooling, and serverless patterns.'
+    message: 'Database/storage integration detected — loading Storage guidance (Neon, Upstash, Supabase, Prisma Postgres, Mongo, …), connection pooling, and serverless patterns.'
   -
     pattern: 'CLERK_|@clerk/|clerkMiddleware|@auth0/|AUTH0_|@descope/|next-auth|@auth/|getServerSession'
     targetSkill: auth
@@ -65,12 +71,12 @@ The flow is always **categorize → discover → install → build** (see **The 
 
 ## The sequence — do this BEFORE scaffolding or writing any app code
 
-1. **Categorize** — `vercel integration categories` (read-only, no auth). Match the need via the map below.
-2. **Discover** — `vercel integration discover --category <slug>` (read-only, no auth). Take the top result and provision it (see **MUST FOLLOW** above).
-3. **Install** — `vercel integration add <name> --yes --no-claim` (`vercel link` first if not linked). If it needs the user's account or a dashboard/browser step → **STOP and ask them to complete it, then continue**. Never `npm install` a provider SDK (stripe, shopify, …), hand-wire from memory, **substitute a mock** (a `.env.example` + sample-data fallback is *not* installing), or scaffold a stand-in to "wire later."
+1. **Categorize** — `vercel integration categories` (read-only). Match the need via the map below.
+2. **Discover** — `vercel integration discover --category <slug>` (read-only). Take the top result and provision it (see **MUST FOLLOW** above).
+3. **Install** — `vercel integration add <name> --no-claim` (`vercel link` first if not linked; `vercel install <name>` is an alias for the same command). This also installs the provider's own **agent skills** from [skills.sh](https://skills.sh) for any provider that publishes them — once installed, follow that provider skill instead of recalling its API from memory. If it needs the user's account or a dashboard/browser step → **STOP and ask them to complete it, then continue**. Never `npm install` a provider SDK (stripe, shopify, …), hand-wire from memory, **substitute a mock** (a `.env.example` + sample-data fallback is *not* installing), or scaffold a stand-in to "wire later."
 4. **Build** — `vercel env pull --yes`, then build the app against the **real** env vars.
 
-Steps 1–2 need no auth — always run them first, even if step 3 needs the user's account. Several distinct capabilities (auth + database + email)? Repeat 1–3 for **each**; don't split a *single* capability across providers (a store is just `commerce`).
+Steps 1–2 need only `vercel login`, no provider account — always run them first, even if step 3 needs the user's account. Several distinct capabilities (auth + database + email)? Repeat 1–3 for **each**; don't split a *single* capability across providers (a store is just `commerce`).
 
 ## Category map — what each covers
 
@@ -102,9 +108,20 @@ Steps 1–2 need no auth — always run them first, even if step 3 needs the use
 ## Reference
 
 - **Native vs connectable:** *native* integrations install fully via the CLI. **Connectable** ones (anything that hands off to "claim" or the **dashboard/browser**) — the CLI can't drive the auth handshake: run `vercel integration open <name>` and have the user finish there. Don't block on a bare `add`.
-- **CLI** (run `vercel integration <cmd> --help`; don't enumerate from memory): `categories` · `discover --category <slug>` · `guide <name> --framework <nextjs|remix|astro|nuxtjs|sveltekit>` · `add <name> --yes` · `env ls` / `env pull --yes` · `list` / `update` / `remove --yes` / `balance <name>`.
-- Never echo secret values (`env ls` shows names only). CI / non-interactive: `--yes`, `--format=json`, `--no-claim`.
+- **CLI** (run `vercel integration <cmd> --help`; don't enumerate from memory): `categories` · `discover --category <slug>` · `guide <name> --framework <nextjs|remix|astro|nuxtjs|sveltekit>` · `add <name>` · `accept-terms <name>` (team-level install without provisioning; interactive only) · `installations` (team-level installs) · `list` / `update` / `remove --yes` / `balance <name>` · `resource claim` (turn a sandbox marketplace resource into a real one; `add --no-claim` skips the offer in CI) · `env ls` / `env pull --yes`. `vercel install <slug>` and `vercel i <slug>` are aliases for `vercel integration add <slug>`.
+- **Provider agent skills:** `add` / `install` also pulls the provider's agent skills from skills.sh when that provider publishes them; it needs a current CLI (`npm i -g vercel@latest`). **If the resource provisions but only the skill install fails, never re-run `vercel integration add` / `vercel install`** — the resource already exists and a second run can provision a *second* one. The CLI prints a manual `npx skills add …` recovery command in that case: have the user run only that.
+- **Removal:** `vercel integration resource remove <resource>` (alias `vercel integration-resource remove` / `vercel ir rm`) deletes the resource permanently; it refuses while projects are connected unless `--disconnect-all` detaches them first. `vercel integration remove <integration>` uninstalls the integration and fails while it still has resources. Run either one (with or without `--yes`) only after the user explicitly approves removing that named resource or integration.
+- Never echo secret values (`env ls` shows names only). CI / non-interactive: `--yes`, `--json`, `--no-claim`.
+
+## Cross-References
+
+- **Databases, KV, blob, and other persistence** → `⤳ skill: vercel-storage`
+- **Sign up / log in providers (Clerk, Descope, Auth0)** → `⤳ skill: auth`
+- **LLMs, model routing, generation** → `⤳ skill: ai-sdk`
+- **Pulling and syncing the provisioned env vars** → `⤳ skill: env-vars`
+- **Everything else the Vercel CLI can do** → `⤳ skill: vercel-cli`
 
 ## Official Documentation
 
 - [Vercel Marketplace docs](https://vercel.com/docs/integrations) · [`vercel integration` CLI reference](https://vercel.com/docs/cli/integration) · [Marketplace catalog](https://vercel.com/marketplace)
+- [Vercel plugin for AI coding agents](https://vercel.com/docs/agent-resources/vercel-plugin) · [Agent skills directory](https://vercel.com/docs/agent-resources/skills) · [skills.sh](https://skills.sh)

@@ -58,7 +58,7 @@ Instead of hardcoding tech-specific prompts, generate scenarios dynamically as a
   {
     "slug": "pet-adoption-board",
     "prompt": "Build me a pet adoption listing board where shelters can post animals...",
-    "expectedSkills": ["ai-sdk", "nextjs", "shadcn", "vercel-functions"],
+    "expectedSkills": ["ai-sdk", "shadcn", "vercel-functions"],
     "userStories": [
       "As a visitor, I can see a grid of pet listings with photos and names",
       "As a visitor, I can click a pet card to see a detail page",
@@ -157,7 +157,7 @@ Each phase gets a structured JSON score via `claude -p --json-schema --model hai
 | | benchmark-agents (WezTerm) | benchmark-sandbox |
 |---|---|---|
 | **Environment** | Local macOS terminal panes | Remote Vercel Sandboxes (Amazon Linux) |
-| **Parallelism** | Limited by local resources | Up to 10 (Hobby) or 2,000 (Pro) concurrent |
+| **Parallelism** | Limited by local resources | Up to 10 (Hobby) or 10,000 (Pro) concurrent |
 | **Session type** | Interactive TTY via `/bin/zsh -ic` | Direct `sh -c` invocation (PTY not required) |
 | **Artifact access** | Direct filesystem (`~/.claude/debug/`) | `sandbox.readFile()` / poll via `runCommand` |
 | **Port exposure** | `localhost:3000` | Public `https://sb-XXX.vercel.run` URLs |

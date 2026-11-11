@@ -17,7 +17,7 @@ Run these checks before any deployment. Stop on failure and print actionable gui
 3. **Monorepo detection** — Look for `turbo.json` or `pnpm-workspace.yaml` at the repo root.
    - If detected: confirm which package is targeted. If ambiguous, ask the user before proceeding.
 4. **Uncommitted changes** — Run `git status --porcelain`.
-   - If output is non-empty: warn the user that uncommitted changes will **not** be included in the deploy. Ask whether to continue or commit first.
+   - If output is non-empty: warn the user that `vercel` uploads the local working tree, so uncommitted and untracked files **will** ship in this deployment (only files matched by `.vercelignore` or the CLI's default ignore list are skipped; `.gitignore` rules do not apply). Ask whether to continue or commit first.
    - If not a git repo, skip this check.
 5. **Observability preflight** (production deploys only) —
 
@@ -38,7 +38,7 @@ State the intended action before executing:
 - **Preview deploy** (default): `vercel` — creates a preview deployment on a unique URL.
 - **Production deploy**: `vercel --prod` — deploys to production domains.
 
-If "$ARGUMENTS" contains "prod" or "production":
+If "$ARGUMENTS" contains the whole word `prod` or `production` (not a substring such as "product"):
 
 > ⚠️ **Production deployment requested.**
 > This will deploy to your live production URL and affect real users.
@@ -47,6 +47,8 @@ If "$ARGUMENTS" contains "prod" or "production":
 If "$ARGUMENTS" does not indicate production:
 
 > Deploying a **preview** build. This creates an isolated URL and does not affect production.
+>
+> If the project has no deployments yet, this deployment goes to production. Tell the user before you deploy.
 
 ## Commands
 
@@ -61,7 +63,7 @@ vercel
 vercel deploy
 ```
 
-Preview deployments are created automatically for every push to a non-production branch when using Git integration. They provide a unique URL for testing.
+Git pushes to non-production branches make previews. A project's first deploy goes to production. To undo it, ask the user, then run `vercel remove <id> --yes`.
 
 ### Production Deployment (requires confirmation)
 
@@ -87,6 +89,10 @@ git rev-parse --short HEAD
 
 After deployment completes, verify the result:
 
+### Deployment status (MCP)
+
+Use `list_deployments` to find the deployment for the intended project and commit, then `get_deployment` to inspect its state. For a failed build, use `list_deployment_events`. Inspect the tools and input schemas exposed by the authenticated connection before calling them.
+
 ### 1. Inspect the Deployment
 
 <!-- Sourced from deployments-cicd skill: Deployment Commands > Inspect Deployments -->
@@ -97,9 +103,8 @@ vercel inspect <deployment-url>
 # List recent deployments
 vercel ls
 
-# View logs for a deployment
-vercel logs <deployment-url>
-vercel logs <deployment-url> --follow
+# View recent runtime logs for a deployment
+vercel logs --deployment <url>
 ```
 
 Extract: deployment state (READY / ERROR / QUEUED / BUILDING), build duration, framework, Node.js version, function count.
@@ -109,10 +114,10 @@ Extract: deployment state (READY / ERROR / QUEUED / BUILDING), build duration, f
 If the deployment state is **ERROR** or the deploy command exited non-zero:
 
 ```bash
-vercel logs <deployment-url>
+vercel inspect <deployment-url> --logs
 ```
 
-Present the last 50 lines of build logs to help diagnose the failure. Highlight any lines containing `error`, `Error`, `ERR!`, or `FATAL`.
+`vercel logs` shows request and runtime logs, not build output. Present the last 50 lines of build logs to help diagnose the failure. Highlight any lines containing `error`, `Error`, `ERR!`, or `FATAL`.
 
 ### 3. On Success — Quick Smoke Check
 
@@ -123,7 +128,7 @@ If the deployment state is **READY**, note the URL is live and accessible.
 For production deployments, wait 60 seconds after READY state, then scan for early runtime errors:
 
 ```bash
-vercel logs <deployment-url> --level error --since 1h
+vercel logs --deployment <deployment-url> --query 'level:error' --since 1h
 ```
 
 Or via MCP if available: use `get_runtime_logs` with level filter `error`.
@@ -134,7 +139,7 @@ Or via MCP if available: use `get_runtime_logs` with level filter `error`.
 |---------|--------|
 | No errors | ✓ Clean deploy — no runtime errors in first hour |
 | Errors detected | List error count and first 5 unique error messages. Suggest: check drain payloads for correlated traces, review function logs in Dashboard |
-| 500 status codes in logs | Correlate timestamps with drain data (if configured) or `vercel logs <url> --json` for structured output. Flag for immediate investigation |
+| 500 status codes in logs | Correlate timestamps with drain data (if configured) or `vercel logs requests --deployment <url> --query 'httpStatus >= 500' --json` for structured output. Flag for immediate investigation |
 | Timeout errors | Check function duration limits in `vercel.json` or project settings. Consider increasing `maxDuration` |
 
 **Fallback (no drains):**
@@ -142,11 +147,11 @@ Or via MCP if available: use `get_runtime_logs` with level filter `error`.
 If no drains are configured, the error scan relies on CLI and Dashboard:
 
 ```bash
-# Stream live errors
-vercel logs <deployment-url> --level error --follow
+# Recent errors (bounded; rerun with a later --since to check again)
+vercel logs --deployment <deployment-url> --query 'level:error' --since 1h
 
 # JSON output for parsing
-vercel logs <deployment-url> --level error --since 1h --json
+vercel logs --deployment <deployment-url> --query 'level:error' --since 1h --json
 ```
 
 > For richer post-deploy monitoring, configure drains to forward logs/traces to an external platform via Dashboard or REST API.
@@ -176,7 +181,7 @@ For production deploys, also include:
 
 ```
 ### Post-Deploy Observability
-- **Error scan**: <N errors found / clean> (scanned via vercel logs --level error --since 1h)
+- **Error scan**: <N errors found / clean> (scanned via vercel logs -q level:error --since 1h)
 - **Drains**: <N configured / none>
 - **Monitoring**: <active / gaps identified>
 ```
@@ -190,6 +195,6 @@ Based on the deployment outcome:
 - **Success (production)** → "Your production site is live. Run `/status` to see the full project overview."
 - **Build error** → "Check the build logs above. Common fixes: verify `build` script in package.json, check for missing env vars with `/env list`, ensure dependencies are installed."
 - **Missing env vars** → "Run `/env pull` to sync environment variables locally, or `/env list` to review what's configured on Vercel."
-- **Monorepo issues** → "Ensure the correct project root is configured in Vercel project settings. Check `vercel.json` for `rootDirectory`."
-- **Post-deploy errors detected** → "Review errors above. Check `vercel logs <url> --level error` for details. If drains are configured, correlate with external monitoring."
+- **Monorepo issues** → "Set the Root Directory in Project Settings to the app's folder; `vercel.json` has no `rootDirectory` key."
+- **Post-deploy errors detected** → "Review errors above. Check `vercel logs --deployment <url> -q level:error` for details. If drains are configured, correlate with external monitoring."
 - **No monitoring configured** → "Set up drains or install an error tracking integration before the next production deploy. Run `/status` for a full observability diagnostic."

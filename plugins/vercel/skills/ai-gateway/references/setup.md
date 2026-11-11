@@ -14,6 +14,8 @@ Use this reference for first requests, authentication setup, migration, and comp
 
 Canonical tutorial: <https://vercel.com/docs/ai-gateway/getting-started>
 
+When a user asks a coding agent to make this request, the coding agent is the tool writing and running the API call. Its own inference does not need to use AI Gateway. The selected `provider/model` is the target of the request, not the identity of the coding agent. Routing the agent's own model traffic is a separate workflow routed from `SKILL.md`.
+
 ## API key setup
 
 Dashboard: <https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys&title=AI+Gateway+API+Keys>
@@ -24,16 +26,41 @@ export AI_GATEWAY_API_KEY="your_ai_gateway_api_key"
 
 The key value is shown once. Never write it to committed source or print it in a response.
 
+### Agent-safe credential handling
+
+Reuse an existing key without revealing it. Do not inspect the environment with broad commands such as `env`, bare `set`, or `printenv`, and do not echo the value. Use a subshell so tracing is restored automatically:
+
+```bash
+(
+  set +x
+  if [ -n "${AI_GATEWAY_API_KEY:-}" ]; then
+    echo "AI_GATEWAY_API_KEY is set"
+  else
+    echo "AI_GATEWAY_API_KEY is missing"
+  fi
+)
+```
+
+If the key exists, skip CLI login and team-scope discovery unless another requested operation needs them. If it is missing and the user authorized key creation:
+
+1. Use the existing project CLI when available; otherwise use `npx vercel@latest` without installing globally.
+2. Read `ai-gateway api-keys create --help` before choosing flags.
+3. Reuse the current CLI team scope. Ask for a team only when that scope is missing or ambiguous.
+4. Prefer an interactive prompt or OS credential store. Never put a literal key in shell history or a command argument, and never send raw key output through agent logs or chat.
+5. Keep shell tracing disabled while a secret is in scope; prefer a subshell so the prior tracing state returns automatically.
+
+For a one-request smoke test, report the generated content, whether the request succeeded, and any action the user must take. Do not dump authorization headers or an unfiltered raw response.
+
 Use the CLI when the user asks for CLI management:
 
 ```bash
 vercel ai-gateway api-keys create --name my-api-key
 ```
 
-The CLI can bind a budget, spend alerts, and an expiry at creation, which beats re-editing the key later:
+The CLI can bind a budget, spend alerts, and an expiry at creation, which beats re-editing the key later (`--amount` needs Vercel CLI 65.4+; older CLIs use `--limit`, or `--budget` before 59.13):
 
 ```bash
-vercel ai-gateway api-keys create --budget 500 --alert-thresholds 75,100 --expiration 90d
+vercel ai-gateway api-keys create --amount 500 --alert-thresholds 75,100 --expiration 90d
 ```
 
 `inspect` shows a key's budget, spend, BYOK spend, alerts, and expiry; `list` shows every key. Run `vercel ai-gateway api-keys create --help` before scripting because available quota, expiration, alert, and restriction-exemption flags change.
@@ -62,8 +89,13 @@ A plain `provider/model` string uses AI Gateway:
 ```ts
 import { generateText } from 'ai';
 
+const model = process.env.AI_GATEWAY_MODEL;
+if (!model) {
+  throw new Error('Set AI_GATEWAY_MODEL to an ID returned by /v1/models');
+}
+
 const { text } = await generateText({
-  model: 'openai/gpt-5.6-sol',
+  model,
   prompt: 'Explain this codebase.',
 });
 
@@ -82,11 +114,12 @@ uv add ai
 
 ```python
 import asyncio
+import os
 import ai
 
 
 async def main() -> None:
-    model = ai.get_model('openai/gpt-5.6-sol')
+    model = ai.get_model(os.environ['AI_GATEWAY_MODEL'])
     messages = [ai.user_message('Explain this project.')]
 
     async with ai.stream(model, messages) as stream:
@@ -107,6 +140,8 @@ Docs: <https://vercel.com/docs/ai-gateway/sdks-and-apis/ai-sdk-python>
 | OpenAI Chat Completions and OpenAI Responses SDKs | `https://ai-gateway.vercel.sh/v1` |
 | Anthropic Messages SDK | `https://ai-gateway.vercel.sh` |
 | OpenResponses HTTP | `https://ai-gateway.vercel.sh/v1/responses` |
+| Decisions HTTP | `https://ai-gateway.vercel.sh/v1/decisions` (`/v1/evaluate` is deprecated) |
+| TypeSafe SDK | Set `baseURL` to `https://ai-gateway.vercel.sh/typesafe` |
 | Cohere Rerank | Follow the current Cohere Rerank page |
 
 Keep the client's request shape and replace its base URL and request authentication. AI Gateway model IDs remain `provider/model` strings even when using an OpenAI or Anthropic SDK.

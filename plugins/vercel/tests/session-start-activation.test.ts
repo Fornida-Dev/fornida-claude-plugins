@@ -58,7 +58,7 @@ describe("session-start activation", () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("greenfield project");
     expect(readSessionFile(testSessionId, "greenfield")).toBe("true");
-    expect(readSessionFile(testSessionId, "likely-skills")).toContain("nextjs");
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("ai-sdk");
   });
 
   test("non-empty unrelated directories skip activation", async () => {
@@ -79,11 +79,14 @@ describe("session-start activation", () => {
     const projectDir = join(tempDir, "next-project");
     mkdirSync(projectDir);
     writeFileSync(join(projectDir, "next.config.ts"), "export default {};");
+    // `ai` alone is not a Vercel signal, so profiling only runs because
+    // next.config.ts activates the session.
+    writeFileSync(join(projectDir, "package.json"), JSON.stringify({ dependencies: { ai: "^7.0.0" } }));
 
     const result = await runProfiler(projectDir);
 
     expect(result.code).toBe(0);
-    expect(readSessionFile(testSessionId, "likely-skills")).toContain("nextjs");
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("ai-sdk");
   });
 
   test("package.json vercel signals are enough to activate", async () => {
@@ -123,6 +126,24 @@ describe("session-start activation", () => {
     expect(readSessionFile(testSessionId, "likely-skills")).toContain(
       "vercel-services",
     );
+  });
+
+  test("daemons configuration profiles the Vercel Daemons skill", async () => {
+    const projectDir = join(tempDir, "daemons-project");
+    mkdirSync(projectDir);
+    writeFileSync(
+      join(projectDir, "vercel.json"),
+      JSON.stringify({
+        daemons: {
+          worker: { root: "worker/", entrypoint: "Dockerfile", instances: { iad1: 2 } },
+        },
+      }),
+    );
+
+    const result = await runProfiler(projectDir);
+
+    expect(result.code).toBe(0);
+    expect(readSessionFile(testSessionId, "likely-skills")).toContain("daemons");
   });
 
   test("the eve package activates the plugin and profiles the eve skill", async () => {

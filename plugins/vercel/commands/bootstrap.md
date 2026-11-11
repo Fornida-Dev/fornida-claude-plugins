@@ -67,6 +67,17 @@ If `.env.example` is absent, use `.env.sample` or `.env.template`.
 ### 2. Provision Postgres
 
 <!-- Sourced from bootstrap skill: Resource Setup: Postgres -->
+### Prisma ORM projects
+
+If the repo has `prisma/schema.prisma`, provision Prisma Postgres with these steps instead of the preferred path below:
+
+```bash
+vercel integration guide prisma
+vercel integration add prisma --scope <team>
+```
+
+It sets `DATABASE_URL` to the direct connection string. Then verify and pull env vars as in step 3 of the preferred path below. For production traffic from Vercel Functions, add the pooled string as described in the `vercel-storage` skill.
+
 ### Preferred path (Vercel-managed Neon)
 
 1. Read integration setup guidance:
@@ -104,7 +115,8 @@ Generate a high-entropy secret without printing it, then store it in Vercel and 
 
 ```bash
 AUTH_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development preview production
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET production,preview
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # separate command: development-only adds default to Config
 unset AUTH_SECRET
 vercel env pull .env.local --yes
 ```
@@ -168,7 +180,7 @@ Return a final bootstrap summary in this format:
 ```md
 ## Bootstrap Result
 - **Linked Project**: <team>/<project>
-- **Resource Path**: vercel-integration-neon | dashboard-neon | neon-cli
+- **Resource Path**: vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli
 - **Env Keys**: <count> required, <count> present, <count> missing
 - **Secrets**: AUTH_SECRET set in Vercel (value never shown)
 - **Migration Status**: not-run | success | failed (<step>)

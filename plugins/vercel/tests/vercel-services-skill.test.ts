@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   compileSkillPatterns,
@@ -17,6 +17,10 @@ import { loadValidatedSkillMap } from "../src/shared/skill-map-loader.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SKILL_PATH = resolve(ROOT, "skills/vercel-services/SKILL.md");
+const EXPERIMENTAL_SERVICES_REFERENCE_PATH = resolve(
+  ROOT,
+  "skills/vercel-services/references/experimental-services.md",
+);
 
 let compiledPromptSignals: CompiledPromptSignals;
 let compiledSkill: CompiledSkillEntry;
@@ -111,5 +115,58 @@ describe("Vercel Services guidance", () => {
     expect(skill).toContain(
       "Native Go and Rust runtime services cannot currently consume bindings",
     );
+  });
+
+  test("discloses that Services is in Beta", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain(
+      "summary: Compose multiple frontends and backends in one Vercel project (Beta)",
+    );
+    expect(skill).toContain("Services is [in Beta on all plans]");
+  });
+
+  test("routes agents that find experimentalServices to the reference doc", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain(
+      "[references/experimental-services.md](references/experimental-services.md)",
+    );
+    expect(existsSync(EXPERIMENTAL_SERVICES_REFERENCE_PATH)).toBe(true);
+  });
+
+  test("maps experimentalServices fields and rejects both keys together", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+    const reference = readFileSync(
+      EXPERIMENTAL_SERVICES_REFERENCE_PATH,
+      "utf8",
+    );
+
+    expect(skill).toContain(
+      "Validation rejects `services` together with `experimentalServices`",
+    );
+    expect(reference).toContain(
+      "declares both `services` and `experimentalServices`",
+    );
+    expect(reference).toContain("| `routePrefix` | A top-level rewrite");
+    expect(reference).toContain("The service's `functions` object");
+    expect(reference).not.toMatch(/Inferred from source|Documented \|/);
+  });
+
+  test("notes how binding calls are billed", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain(
+      "Each call over a binding is billed as one [Service Request](https://vercel.com/docs/services/pricing)",
+    );
+    expect(skill).toContain('- "https://vercel.com/docs/services/pricing"');
+  });
+
+  test("documents destination.path as a route selector", () => {
+    const skill = readFileSync(SKILL_PATH, "utf8");
+
+    expect(skill).toContain("selects which route runs inside the service");
+    expect(skill).toContain('"path": "/:path*?org=:orgSlug"');
+    expect(skill).not.toContain("has no effect at request time");
   });
 });
