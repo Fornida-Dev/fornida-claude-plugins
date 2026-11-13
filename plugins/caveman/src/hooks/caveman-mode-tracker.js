@@ -426,12 +426,18 @@ process.stdin.setEncoding('utf8');
 // prompt waiting for the whole hook timeout. Give up, as the SessionStart hook
 // does (PAYLOAD_WATCHDOG_MS there).
 const watchdog = setTimeout(() => process.exit(0), 2000);
+// FORNIDA PATCH (2026-11-13, see VENDOR.md): hard caps so this hook can never sit until the host's
+// 30s timeout. Field report: "UserPromptSubmit hook [Tracking caveman mode...] timed out after 30s"
+// on Windows with the work already done. An unref'd timer never keeps the process alive; it only
+// ends one that something else (a pipe handle that will not close) is holding open.
+try { setTimeout(() => process.exit(0), 6000).unref(); } catch (e) {}
 process.stdin.on('data', chunk => {
   input += chunk;
   // A partial payload throws here and we simply wait for more bytes.
   try { JSON.parse(input); } catch (e) { return; }
   clearTimeout(watchdog);
   handle(input);
+  try { setTimeout(() => process.exit(0), 1500).unref(); } catch (e) {} // FORNIDA PATCH: leave time for stdout to flush, then go
   // pause() stops the flow but the 'data' listener has REFERENCED the stdin
   // handle, so the event loop stays alive until the host closes the write end.
   // On Windows that close lags arbitrarily (#729/#833), so the hook sat idle

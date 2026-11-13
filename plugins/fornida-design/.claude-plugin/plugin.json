@@ -1,7 +1,7 @@
 {
   "name": "fornida-design",
   "description": "Frontend design that does not depend on reading screenshots: translates vague feedback into measured fixes, verifies with a local UI measurement tool (geometry, spacing, type, color drift, focus, accessibility, parity against a reference build).",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": { "name": "Fornida MSP / Systems", "email": "it@fornida.com" },
   "skills": "./skills/"
 }

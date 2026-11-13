@@ -26,6 +26,14 @@ upstream with no overlay to clobber or re-apply.
 (Earlier versions overlaid a forced output style + hook-neutralized `plugin.json`
 onto caveman here; that was moved to the kit so this repo stays a clean passthrough.)
 
+### Local patches (re-apply or drop on the next caveman re-vendor)
+
+- **caveman `src/hooks/caveman-mode-tracker.js`** (2026-11-13): two unref'd hard-exit timers (6s overall,
+  1.5s after the prompt is handled), marked `FORNIDA PATCH`. Field report: "UserPromptSubmit hook
+  [Tracking caveman mode...] timed out after 30s" on a Windows machine. The script's own work takes
+  milliseconds, so the wait is the process not ending (or Node starting slowly); the timers end it
+  whenever something holds it open. `checksums.sha256` updated. Drop this if upstream adds its own cap.
+
 ## Known limitation — compound-engineering on Windows
 
 Upstream compound-engineering **restructured**: the plugin now lives at the repo
