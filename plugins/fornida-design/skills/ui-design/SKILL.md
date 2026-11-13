@@ -1,6 +1,6 @@
 ---
 name: ui-design
-description: "Use for any frontend or UI work: building, restyling, reviewing or fixing how an interface looks, matching a reference or older version, and especially when the feedback is vague (looks off, cluttered, cramped, boring, doesn't match, hard to read). Turns vague feedback into measured, concrete fixes and verifies them with numbers instead of judging screenshots. Not for backend-only work."
+description: "Use for ANY frontend or UI work, before editing styles or markup: building, restyling, reviewing or fixing how a page, component, layout, form, table, chart or dashboard looks; matching a reference, mockup or the older version (v1 vs v2); responsive or mobile problems; dark mode, spacing, colors, fonts. Especially when the feedback is vague (looks off, cluttered, cramped, boring, ugly, not polished, doesn't match, hard to read, something is wrong). Turns vague feedback into measured, concrete fixes and verifies them with numbers instead of judging screenshots. Not for backend-only work."
 argument-hint: "[critique | polish | layout | type | color | quieter | bolder | clarify | responsive | harden | match <reference-url> | setup] [target]"
 ---
 
