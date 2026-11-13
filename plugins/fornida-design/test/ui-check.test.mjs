@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
-import { parseArgs, toUrl, isLocal, matchRecords, diffRecords, groupDiffs, withRoute, san } from "../skills/ui-design/scripts/ui-check.mjs";
+import { parseArgs, toUrl, isLocal, matchRecords, diffRecords, groupDiffs, withRoute, san, baselineKey } from "../skills/ui-design/scripts/ui-check.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(HERE, "..", "skills", "ui-design", "scripts", "ui-check.mjs");
@@ -202,4 +202,54 @@ test("server cases: 404 is a tool error, a redirect is flagged, storage state lo
     const remote = await runAsync(["https://example.com"]);
     assert.strictEqual(remote.code, 1); assert.match(remote.stderr, /not a local address/);
   } finally { server.close(); }
+});
+
+// ---- v1.1: source hints and baseline
+
+test("findings name the source component and file when the dev build exposes it", () => {
+  const { data } = run([FIX("source.html"), "--viewports", "mobile", "--no-axe"]);
+  const by = (sel) => data[0].issues.find((i) => i.selector === sel) || {};
+  assert.strictEqual(by("#wide").source, "Dashboard > Card (src/components/Card.tsx:42)", "React fiber: owners + JSX location, path made project-relative");
+  assert.strictEqual(by("#tiny").source, "src/components/Toolbar.tsx:17 [from a parent element]", "inspector data-attributes on an ancestor");
+  assert.strictEqual(by("#evil").source, "src/x.tsx:9", "no home directory or client folder leaks; odd characters dropped");
+  const plain = run([FIX("bad.html"), "--viewports", "desktop", "--no-axe"]).data[0];
+  assert.ok(plain.issues.every((i) => !("source" in i)), "no source info: the field is absent, never guessed");
+});
+
+test("baseline: key ignores host and port; flags validate", () => {
+  const vp = { name: "desktop" }, o = { scheme: "light", scope: null };
+  assert.strictEqual(baselineKey("http://localhost:3000/reports?tab=1", vp, o), baselineKey("http://127.0.0.1:5173/reports?tab=1", vp, o));
+  assert.notStrictEqual(baselineKey("http://localhost:3000/a", vp, o), baselineKey("http://localhost:3000/b", vp, o));
+  assert.notStrictEqual(baselineKey("http://localhost:3000/a", vp, o), baselineKey("http://localhost:3000/a", { name: "mobile" }, o));
+  assert.throws(() => parseArgs(["a.html", "--save-baseline", "d", "--against", "d"]), /separate runs/);
+  assert.throws(() => parseArgs(["a.html", "--against", "d", "--compare", "b.html"]), /cannot be combined/);
+});
+
+test("baseline: save, no change is clean, a change lists only what moved, a missing baseline is a tool error", () => {
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), "uic-base-"));
+  const page = path.join(work, "site", "index.html"), dir = path.join(work, "baseline");
+  fs.mkdirSync(path.dirname(page));
+  fs.copyFileSync(FIX("reference.html"), page);
+  const raw = (args) => { try { return { code: 0, out: execFileSync("node", [SCRIPT, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 120000 }) }; } catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; } };
+  const missing = raw([page, "--viewports", "desktop", "--against", dir]);
+  assert.strictEqual(missing.code, 1);
+  assert.match(missing.out, /no baseline found/);
+  const saved = raw([page, "--viewports", "desktop", "--save-baseline", dir]);
+  assert.strictEqual(saved.code, 0, saved.out);
+  assert.ok(fs.existsSync(path.join(dir, "baseline.json")) && fs.readdirSync(dir).some((f) => f.endsWith(".png")));
+  const same = raw([page, "--viewports", "desktop", "--against", dir]);
+  assert.strictEqual(same.code, 0, same.out);
+  assert.match(same.out, /no changes since the baseline/);
+  fs.copyFileSync(FIX("target.html"), page); // "the change"
+  const changed = run([page, "--viewports", "desktop", "--against", dir]);
+  assert.strictEqual(changed.code, 2);
+  assert.strictEqual(changed.data[0].mode, "baseline");
+  assert.ok(changed.data[0].systematic.length > 0, "style changes are grouped like parity");
+  const text = raw([page, "--viewports", "desktop", "--against", dir]);
+  assert.match(text.out, /ui-check BASELINE {2}saved \d{4}-/);
+  assert.match(text.out, /did not intend to change is a regression/);
+  const other = raw([page, "--viewports", "mobile", "--against", dir]);
+  assert.strictEqual(other.code, 1);
+  assert.match(other.out, /no entry for/);
+  fs.rmSync(work, { recursive: true, force: true });
 });

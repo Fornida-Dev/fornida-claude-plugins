@@ -31,6 +31,10 @@ ui-check directly:
 
     node plugins/fornida-design/skills/ui-design/scripts/ui-check.mjs http://localhost:3000 --inventory
     node .../ui-check.mjs http://localhost:3001 --compare http://localhost:3000 --routes "/,/reports"
+    node .../ui-check.mjs http://localhost:3000 --save-baseline /tmp/base    # before a change
+    node .../ui-check.mjs http://localhost:3000 --against /tmp/base          # after: lists only what moved
+
+Findings carry a `source:` line (component and file) when the dev build exposes it.
 
 Flags, rules and exit codes: `skills/ui-design/reference/ui-check.md`.
 
