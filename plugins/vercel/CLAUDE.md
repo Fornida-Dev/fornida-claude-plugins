@@ -26,10 +26,10 @@ All hooks are registered in `hooks/hooks.json` and run via `node "${CLAUDE_PLUGI
 
 | Event | Hook | Matcher | Timeout |
 |-------|------|---------|---------|
-| SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` `--part 1/2` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` `--part 2/2` | `startup\|resume\|clear\|compact` | — |
+| SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `inject-claude-md.mjs` `--part 1/2` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `inject-claude-md.mjs` `--part 2/2` | `startup\|resume\|clear\|compact` | 15s |
 | PostToolUse | `posttooluse-skill-telemetry.mjs` | `Skill` | 5s |
 | SessionEnd | `session-end-cleanup.mjs` | — | — |
 
@@ -48,6 +48,7 @@ Source lives in `hooks/src/*.mts` (TypeScript) and compiles to `hooks/*.mjs` (ES
 - `hook-env.mts` — shared runtime helpers (env parsing, path resolution)
 - `skill-map-frontmatter.mts` — YAML parser + frontmatter extraction + `buildSkillMap()` + `validateSkillMap()`
 - `patterns.mts` — glob→regex conversion, seen-skills helpers, ranking, atomic file claims
+- `session-env-file.mts` — writes `export` lines to `CLAUDE_ENV_FILE`, replacing any earlier line for the same key so resumes and compactions do not grow the file
 - `prompt-patterns.mts` — prompt signal compiler + scorer (phrases/allOf/anyOf/noneOf)
 - `prompt-analysis.mts` — dry-run analysis reports for prompt matching
 - `vercel-config.mts` — vercel.json key→skill routing (±10 priority)
@@ -81,7 +82,7 @@ Special triggers in PreToolUse:
 
 ### Skill Structure (`skills/<name>/SKILL.md`)
 
-38 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
+40 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
 
 ```yaml
 ---

@@ -31,7 +31,7 @@ When a unit carries an `Execution note`, honor its intent rather than matching a
 
 Guardrails for execution evidence:
 - Do not write the test and implementation in the same step when working proof-first
-- Do not skip verifying that a new or changed test fails for the expected reason before implementing the fix or feature
+- Do not skip verifying that a new or changed test fails for the expected reason before implementing the fix or feature. When the behavior rests on more than one guard, also confirm after implementing that the test fails when each guard alone is removed, restoring each one afterward
 - Do not over-implement beyond the current behavior slice when working proof-first
 - Do not add a duplicate regression test when an existing test is the right home; update or strengthen that test instead, then observe the failure before changing code
 - A new or changed test must fail when the behavior it names breaks, and keep passing when only the implementation changes. It fails that bar when its expected value comes from the code under test, when a mock or fixture supplies the result the code should produce, or when it asserts calls between internal parts instead of what the code returns, stores, or sends across its boundary
@@ -64,7 +64,7 @@ If the plan has Implementation Units, use them as a starting guide for commit bo
 
 Preserve the full resolved message as data through the selected engine's canonical commit owner. If that owner cannot accept the full message, stop and report the blocker rather than truncate it or bypass the owner's protocol. Cross-model commits follow the controller integration contract in `references/cross-model-execution.md`.
 
-For native host-owned Git commits, write the full resolved message to a file outside the repo with your file-write tool. Pass that file to Git so the shell never interprets message text.
+For native host-owned Git commits, pass the full resolved message to Git on stdin, as below, so the shell never interprets message text.
 
 **Native Git commit workflow:**
 ```bash
@@ -75,7 +75,18 @@ For native host-owned Git commits, write the full resolved message to a file out
 git add <files related to this logical unit>
 
 # 3. Commit with the resolved message, limited to those same paths
-git commit -F <message-file> -- <files related to this logical unit>
+git commit -F - -- <files related to this logical unit> <<'CE_COMMIT_MESSAGE_END'
+<resolved message>
+CE_COMMIT_MESSAGE_END
+```
+
+Under PowerShell:
+
+```powershell
+$OutputEncoding = [Console]::InputEncoding = [Text.UTF8Encoding]::new()
+@'
+<resolved message>
+'@ | git commit -F - -- <files related to this logical unit>
 ```
 
 **Note:** Incremental commits add no plugin-generated attribution. The final Phase 4 handoff passes `branding:on` so `ce-commit-push-pr` can add generic Compound Engineering branding to the PR.

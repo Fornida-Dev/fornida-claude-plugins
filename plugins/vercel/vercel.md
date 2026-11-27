@@ -300,10 +300,10 @@ AI GATEWAY                                 ⤳ skill: ai-gateway  📖 docs: htt
 │   ⊃ Built-in Observability
 │
 ├── Image Generation (gateway-native)
-│   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image-preview' + generateText → result.files
+│   ⊃ Multimodal LLMs: model: 'google/gemini-3.1-flash-image' + generateText → result.files
 │   ⊃ Image-only models: generateImage (Imagen 4.0, Flux 2, Grok Imagine)
-│   ⊃ Default model: google/gemini-3.1-flash-image-preview
-│   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image Preview
+│   ⊃ Default model: google/gemini-3.1-flash-image
+│   ⊃ DALL-E, gemini-2.x image models are outdated — use Gemini 3.1 Flash Image
 │
 ├── Supported Providers
 │   ⊃ OpenAI, Anthropic, Google, Meta, xAI, Mistral
@@ -322,7 +322,7 @@ WORKFLOW SDK                               ⤳ skill: workflow  📖 docs: https
 │   ⊃ Deterministic replay
 │   ⊃ Pause/resume (minutes to months)
 │   ⊃ Hooks (defineHook → human-in-the-loop approval, pause/resume)
-│   ⊃ AI Gateway OIDC required (vercel link + vercel env pull before dev)
+│   ⊃ Model access: plain "provider/model" strings use AI Gateway (OIDC via vercel link + vercel env pull, or AI_GATEWAY_API_KEY); provider packages with their own key (e.g. OPENAI_API_KEY) also work
 │
 ├── Worlds (Execution Environments)
 │   ⊃ Local World (JSON files on disk)
@@ -686,7 +686,7 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | Chat interface | AI SDK `useChat` + `streamText` + AI Gateway + AI Elements | Streaming UI, provider-agnostic |
 | Chat UI components (messages, tools, reasoning) | AI Elements (`npx ai-elements`) | Pre-built, handles UIMessage parts |
 | Custom chat rendering (no AI Elements) | Manual `message.parts` iteration | Full control over rendering |
-| Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image-preview'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
+| Image generation (default) | AI Gateway `model: 'google/gemini-3.1-flash-image'` + `generateText` → `result.files` | Multimodal LLM, best quality, gateway-native |
 | Image generation (image-only models) | `generateImage` (Imagen 4.0, Flux 2) | Only for dedicated image models, not multimodal LLMs |
 | Structured data extraction | AI SDK `generateText` + `Output.object()` + AI Gateway | Type-safe, schema-validated |
 | Agent loop embedded in an existing application | AI SDK `Agent` class + AI Gateway | Direct loop control and tool calling |
@@ -726,9 +726,11 @@ VERCEL MARKETPLACE                          ⤳ skill: marketplace  📖 docs: h
 | ---------------------------------- | ----------------------------- | ------------------------------------------- |
 | DDoS protection                    | Vercel Firewall (automatic)   | Always on, all plans                        |
 | Custom traffic rules               | WAF rules engine              | Framework-aware, 300ms propagation          |
-| Bot blocking                       | BotID + bot protection ruleset | Kasada-powered detection; managed ruleset challenges non-browser traffic |
+| Site-wide bot blocking             | Bot Protection + AI Bots managed rules, bot name/category rules | Managed rules challenge non-browser traffic; verified bots pass |
+| Bots on signup, checkout, AI routes | BotID (`checkBotId()`) ⤳ skill: botid | Invisible per-route challenge; Kasada-powered Deep Analysis |
+| Third-party script tampering, XSS  | CSP header + Page Integrity ⤳ skill: client-side-security | Browser blocks unknown sources; Page Integrity flags changed scripts |
 | Rate limiting                      | WAF rate limiting             | Per-endpoint control                        |
-| OWASP protection                   | Managed rulesets (Enterprise) | Industry-standard rules                     |
+| OWASP protection                   | OWASP core ruleset (Enterprise; Pro Priority projects) | Industry-standard rules                     |
 | Compliance isolation (SOC2, HIPAA) | Secure Compute                | Dedicated infrastructure, no shared tenancy |
 | Tokenless CI/CD deployments        | OIDC Federation               | Short-lived tokens, no secrets to rotate    |
 
@@ -790,7 +792,7 @@ Three distinct caching systems serve different purposes. They can be used indepe
 3. vercel env pull (pulls VERCEL_OIDC_TOKEN + gateway env vars to .env.local)
 4. npm install ai @ai-sdk/react (core SDK + React hooks — `@ai-sdk/react` is required for `useChat`)
 5. npx ai-elements (install chat UI components — Message, Conversation, PromptInput)
-6. Code: model: 'anthropic/claude-sonnet-4.6' (plain string routes through AI Gateway automatically)
+6. Code: model: process.env.AI_GATEWAY_MODEL (a plain "provider/model" string routes through AI Gateway automatically; set it to an ID from https://ai-gateway.vercel.sh/v1/models)
 7. Server: convertToModelMessages(messages) → streamText → toUIMessageStreamResponse()
 8. Client: useChat({ transport: new DefaultChatTransport({ api: '/api/chat' }) })
 9. Next.js (App Router) → AI SDK + AI Elements → AI Gateway (OIDC auth)
@@ -894,9 +896,9 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 | `isLoading` (useChat) | `status === "streaming" \|\| status === "submitted"` | v6 status enum |
 | `onResponse()` callback | Transport configuration | Removed in AI SDK 5 |
 | `body` option (useChat) | Pass data through transport | v6 transport pattern |
-| DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image-preview'` | Better quality, faster, cheaper |
-| `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image-preview` | Dramatically better quality |
-| `gpt-4o` | `gpt-5.4` | Better, cheaper, faster |
+| DALL-E 2/3 | `model: 'google/gemini-3.1-flash-image'` | Better quality, faster, cheaper |
+| `gemini-2.0-flash-exp-image-generation` | `gemini-3.1-flash-image` | Dramatically better quality |
+| `gpt-4o` | A current model ID from `https://ai-gateway.vercel.sh/v1/models` | Superseded by newer generations |
 | `"pipeline"` (turbo.json) | `"tasks"` | Turborepo v2 rename |
 | `next/head` | `metadata` / `generateMetadata()` | App Router pattern (Pages Router only) |
 | `next export` | `output: "export"` in next.config | CLI command removed |
@@ -929,7 +931,7 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 
 ### AI SDK 7
 
-- **Default to AI Gateway** — pass `"provider/model"` strings directly (e.g., `model: 'anthropic/claude-sonnet-4.6'`) — they route through the AI Gateway automatically. The `gateway()` wrapper from `'ai'` is optional and only needed when using `providerOptions.gateway` for routing/failover/tags. Do NOT install or import direct provider SDKs (`@ai-sdk/anthropic`, `@ai-sdk/openai`, etc.) unless you need provider-specific features not exposed through the gateway.
+- **Default to AI Gateway** — pass `"provider/model"` strings directly (an ID returned by `https://ai-gateway.vercel.sh/v1/models`, kept in config such as `AI_GATEWAY_MODEL`) — they route through the AI Gateway automatically. The `gateway()` wrapper from `'ai'` is optional and only needed when using `providerOptions.gateway` for routing/failover/tags. Do NOT install or import direct provider SDKs (`@ai-sdk/anthropic`, `@ai-sdk/openai`, etc.) unless you need provider-specific features not exposed through the gateway.
 - **Install `@ai-sdk/react` for React hooks** — `useChat`, `useCompletion`, and `useObject` live in `@ai-sdk/react` (not `ai`). Always `npm install ai @ai-sdk/react` together for React/Next.js projects.
 - **OIDC is the default auth for AI Gateway** — when you run `vercel env pull`, it provisions `VERCEL_OIDC_TOKEN` which the `@ai-sdk/gateway` package reads automatically via `@vercel/oidc`. No `AI_GATEWAY_API_KEY` or provider-specific API keys needed. On Vercel deployments, OIDC tokens are auto-refreshed. For local dev, re-run `vercel env pull` if the token expires (12h).
 - **For AI projects, set up a Vercel project first** — run `vercel link` (or create via dashboard) → enable AI Gateway in dashboard → `vercel env pull` to get OIDC credentials locally. Do NOT manually create `.env.local` with provider-specific API keys like `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
@@ -941,8 +943,8 @@ Git Push → CI Pipeline → vercel build → vercel deploy --prebuilt
 - **`maxSteps` was removed** — use `stopWhen: isStepCount(N)` (import `isStepCount` from `ai`; named `stepCountIs` in AI SDK 6) for multi-step tool calling in both `streamText` and the `Agent` class.
 - Use the `Agent` class for multi-step reasoning instead of manual tool-calling loops. Agent methods are `agent.generate()` and `agent.stream()` (not `agent.generateText()` / `agent.streamText()`).
 - Use `WorkflowAgent` from `@ai-sdk/workflow` for production agents that must survive crashes; the current 2.x line requires Workflow 5 (`workflow@latest`). Workflow 5 deprecates `DurableAgent` from `@workflow/ai`, which the Workflow 4 docs use; see the WorkflowAgent migration guide.
-- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image-preview'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
-- **Outdated models**: `gpt-4o` → use `gpt-5.4`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image-preview`; DALL-E 2/3 → use Gemini 3.1 Flash Image Preview.
+- **Image generation is gateway-native** — use `model: 'google/gemini-3.1-flash-image'` with `generateText()` for best results (images in `result.files`). Use `generateImage` only for image-only models (Imagen 4.0, Flux 2). Do NOT use DALL-E or older Gemini 2.x image models — they are outdated.
+- **Outdated models**: `gpt-4o` → pick a current model from `https://ai-gateway.vercel.sh/v1/models`; `gemini-2.0-flash-exp-image-generation` → use `gemini-3.1-flash-image`; DALL-E 2/3 → use Gemini 3.1 Flash Image.
 - Use `@ai-sdk/mcp` (stable, not experimental) for MCP server connections.
 - Use `mcp-to-ai-sdk` CLI to generate static tool definitions from MCP servers for security.
 - Use AI SDK DevTools (`npx @ai-sdk/devtools`) during development for debugging.
