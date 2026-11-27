@@ -56,8 +56,8 @@ Build failed?
 │  ├─ 300–800s → Pro/Enterprise: set `maxDuration` in code or vercel.json
 │  ├─ 800–1800s → Pro/Enterprise extended-duration beta (30 min)
 │  │   ├─ Must be set PER FUNCTION — project defaults above 800s are ignored
-│  │   ├─ Runtimes: nodejs22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
-│  │   └─ Blocked if the project uses Secure Compute or Static IPs
+│  │   ├─ Runtimes: nodejs22/24/26.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
+│  │   └─ Blocked if the project uses BYOC (Secure Compute and Static IPs are fine)
 │  └─ > 30 min, or must survive crashes/deploys → Vercel Workflow
 ├─ On Hobby? → 300s is both default AND max; no extension exists, upgrade to Pro
 ├─ Client disconnected before the function finished?
@@ -360,7 +360,7 @@ jobs:
 
 | Source | What it checks |
 | --- | --- |
-| Vercel ([native](https://vercel.com/docs/deployment-checks#native-deployment-checks)) | Runs the `lint` and `typecheck` (or `type-check`, `check-types`) scripts from `package.json`, skipping a check with no matching script. Each check can be limited to specific environments |
+| Vercel ([native](https://vercel.com/docs/deployment-checks#native-deployment-checks)) | Runs the `lint` and `typecheck` (or `type-check`, `check-types`) scripts from `package.json`, skipping a check with no matching script, plus Vercel-provided checks such as Microfrontends Config Present and Flag Definitions Present. Each check can be limited to specific environments |
 | GitHub | Commit statuses and GitHub Actions check runs on the deployed commit. Requires Vercel for GitHub |
 | Integrations | Marketplace integrations for testing, monitoring, and observability |
 

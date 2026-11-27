@@ -110,7 +110,7 @@ export const config = {
 };
 ```
 
-Bun reduces average latency by ~28% in CPU-bound workloads. Currently in Public Beta — supports Next.js, Express, Hono, and Nitro.
+Bun reduces average latency by ~28% in CPU-bound workloads. Currently in Public Beta — configurable for all frameworks, including Next.js.
 
 ## Basic Example
 
@@ -216,7 +216,7 @@ export default function middleware(request: Request) {
 |-------|-------|
 | Max URL length | 14 KB |
 | Max request body | 4 MB |
-| Max request headers | 64 headers / 16 KB total |
+| Max request headers | 64 headers; 32 KB per header (name included) |
 
 ## Three CDN Routing Mechanisms
 
